@@ -330,10 +330,13 @@ router.post(
          status, cancel_reason, follow_up, created_by,
          amount_received, load_type, garage_dispatched, commission_rate, commission_amount,
          is_paid, paid_at, paid_by, paid_amount)
-       VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-               $16, $17, $18, $19, $20,
-               $21, CASE WHEN $21 THEN NOW() ELSE NULL END, CASE WHEN $21 THEN $22 ELSE NULL END,
-               CASE WHEN $21 THEN $20 ELSE NULL END)
+       VALUES ($1::date, $2::text, $3::text, $4::text, $5::text, $6::int, $7::text, $8::text,
+               $9::text, $10::int, $11::int, $12::text, $13::text, $14::text, $15::int,
+               $16::bigint, $17::text, $18::boolean, $19::numeric, $20::bigint,
+               $21::boolean,
+               CASE WHEN $21::boolean THEN NOW() ELSE NULL END,
+               CASE WHEN $21::boolean THEN $22::int ELSE NULL END,
+               CASE WHEN $21::boolean THEN $20::bigint ELSE NULL END)
        RETURNING id`,
       [
         loadDate,
@@ -578,10 +581,10 @@ router.patch(
 
     await db.query(
       `UPDATE loads
-          SET is_paid = $2,
-              paid_at = CASE WHEN $2 THEN NOW() ELSE NULL END,
-              paid_by = CASE WHEN $2 THEN $3 ELSE NULL END,
-              paid_amount = CASE WHEN $2 THEN $4 ELSE NULL END,
+          SET is_paid = $2::boolean,
+              paid_at = CASE WHEN $2::boolean THEN NOW() ELSE NULL END,
+              paid_by = CASE WHEN $2::boolean THEN $3::int ELSE NULL END,
+              paid_amount = CASE WHEN $2::boolean THEN $4::bigint ELSE NULL END,
               updated_at = NOW()
         WHERE id = $1`,
       [loadId, data.isPaid, req.user.id, settled]

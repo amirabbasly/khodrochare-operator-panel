@@ -38,6 +38,7 @@ const RESCUER_SELECT = `
   COALESCE(s.cancelled_loads, 0) AS cancelled_loads,
   COALESCE(s.billed_amount, 0)   AS billed_amount,
   COALESCE(s.paid_amount, 0)     AS paid_amount,
+  COALESCE(s.earned_amount, 0)   AS earned_amount,
   COALESCE(s.paid_loads, 0)      AS paid_loads,
   COALESCE(s.unpaid_loads, 0)    AS unpaid_loads
 `;
@@ -54,7 +55,8 @@ const RESCUER_FROM = `
            SUM(CASE WHEN status <> 'cancelled' THEN commission_amount ELSE 0 END) AS billed_amount,
            SUM(CASE WHEN status <> 'cancelled' AND is_paid THEN commission_amount ELSE 0 END) AS paid_amount,
            SUM(CASE WHEN status <> 'cancelled' AND is_paid THEN 1 ELSE 0 END)::int AS paid_loads,
-           SUM(CASE WHEN status <> 'cancelled' AND is_paid = FALSE THEN 1 ELSE 0 END)::int AS unpaid_loads
+           SUM(CASE WHEN status <> 'cancelled' AND is_paid = FALSE THEN 1 ELSE 0 END)::int AS unpaid_loads,
+           SUM(CASE WHEN status <> 'cancelled' THEN amount_received - commission_amount ELSE 0 END) AS earned_amount
     FROM loads
     GROUP BY rescuer_id
   ) s ON s.rescuer_id = r.id

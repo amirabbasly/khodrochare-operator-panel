@@ -324,15 +324,15 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
         <Field label="آدرس امدادخواه" error={fieldErrors.address} className="full">
           <input
             type="text"
-            placeholder="مثلاً محمودآباد، بلوار امام، پلاک ۱۲"
+            placeholder="آدرس منزل امدادخواه (اختیاری)"
             value={form.address}
             onChange={(event) => update('address', event.target.value)}
           />
         </Field>
 
-        <Field label="توضیحات" error={fieldErrors.description} className="full">
+        <Field label="توضیحات / علت کنسلی" error={fieldErrors.description} className="full">
           <textarea
-            placeholder="توضیحات تکمیلی درباره‌ی درخواست…"
+            placeholder="علت کنسلی بار یا توضیح تکمیلی درباره‌ی درخواست…"
             value={form.description}
             onChange={(event) => update('description', event.target.value)}
           />
@@ -369,10 +369,13 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
             </div>
 
             <div className="commission-preview">
-              <span className="text-xs text-muted">سهم امدادگر (خودکار)</span>
+              <span className="text-xs text-muted">سهم خودرو چاره (خودکار)</span>
               <span className="commission-value">{formatAmount(commission.amount)} تومان</span>
               <span className="text-xs text-muted">
                 {commission.rate}٪ از {formatAmount(form.amountReceived)} تومان
+              </span>
+              <span className="text-xs rescuer-share">
+                سهم امدادگر: {formatAmount(Math.max(0, Number(form.amountReceived || 0) - commission.amount))} تومان
               </span>
             </div>
           </div>

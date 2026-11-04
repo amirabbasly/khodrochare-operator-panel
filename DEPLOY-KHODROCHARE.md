@@ -583,3 +583,78 @@ const { getDb, closeDb } = require('./src/db');
 ```
 
 **الزامات رمز:** حداقل ۱۰ کاراکتر، حداقل یک حرف انگلیسی و یک عدد، و بدون نام کاربری/نام خود.
+
+---
+
+## رفع اشکال‌های نسخه‌ی ۳.۱
+
+### الف) خطای `42P08` هنگام «ثبت بار» (500)
+
+```
+{"error":{"code":"42P08","message":"خطای غیرمنتظره‌ای در سرور رخ داد…"}}
+```
+
+کد `42P08` در PostgreSQL یعنی «نوع پارامتر قابل تشخیص نیست»؛ پارامترهایی که فقط داخل
+`CASE WHEN ... THEN $n` استفاده شده بودند، نوع‌شان اعلام نشده بود. در این نسخه همه‌ی
+پارامترهای پرس‌وجو با کست صریح (`$21::boolean`, `$22::int`, …) ارسال می‌شوند.
+
+**راه‌حل:** تصویر API باید بازسازی شود (فقط ری‌استارت کافی نیست):
+
+```bash
+cd /var/www/khodrochare-panel
+git pull
+docker compose --env-file .env.docker up -d --build api
+docker compose --env-file .env.docker logs --tail=40 api
+```
+
+اگر در لاگ این خط را دیدید یعنی مهاجرت درست اجرا شده است:
+
+```
+✅ مهاجرت پایگاه داده با موفقیت انجام شد
+```
+
+### ب) خطای `relation "banned_ips" does not exist`
+
+یعنی جدول جدول IPهای مسدود روی این پایگاه‌داده ساخته نشده است (معمولاً چون تصویر API
+بازسازی نشده بود). این نسخه خودش جدول را در نخستین استفاده می‌سازد، ولی برای رفع فوری:
+
+```bash
+cd /var/www/khodrochare-panel
+
+# ۱) اجرای مهاجرت به‌صورت دستی داخل کانتینر API
+docker compose --env-file .env.docker exec -T api npm run migrate
+
+# ۲) اگر باز هم نبود، ساخت مستقیم جدول
+docker compose --env-file .env.docker exec -T db psql -U khodro_panel -d khodrochare_panel -c "
+CREATE TABLE IF NOT EXISTS banned_ips (
+  ip VARCHAR(64) PRIMARY KEY,
+  reason VARCHAR(40) NOT NULL DEFAULT 'decoy_credentials',
+  username VARCHAR(60),
+  user_agent TEXT,
+  attempts INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);"
+
+# ۳) بررسی اینکه جدول ساخته شد
+docker compose --env-file .env.docker exec -T db psql -U khodro_panel -d khodrochare_panel -c "\d banned_ips"
+```
+
+> اگر دستور `psql` می‌گوید پایگاه‌داده وجود ندارد، نام درست پایگاه‌داده را از
+> `.env.docker` (کلید `POSTGRES_DB`) بردارید و به‌جای `khodrochare_panel` بگذارید:
+> `docker compose --env-file .env.docker exec -T db psql -U khodro_panel -l`
+
+### ج) معنای درصدها: «سهم خودرو چاره»
+
+درصدها سهم **خودرو چاره** از مبلغ دریافتی است، نه سهم امدادگر:
+
+| نوع بار | سهم خودرو چاره | سهم امدادگر |
+| --- | --- | --- |
+| حملی | ۲۰٪ | ۸۰٪ |
+| تعمیر در محل | ۳۰٪ | ۷۰٪ |
+| امکان اعزام به تعمیرگاه | ۳۰٪ | ۷۰٪ |
+
+دکمه‌ی «پرداخت شد» یعنی امدادگر سهم خودرو چاره را پرداخت کرده است. در پنل، برای هر بار
+هم «مبلغ دریافتی»، هم «سهم خودرو چاره» و هم «سهم امدادگر» نمایش داده می‌شود؛ در پروفایل
+هر امدادگر: بدهی کل، پرداخت‌شده، مانده‌ی بدهی و درآمد واقعی امدادگر.

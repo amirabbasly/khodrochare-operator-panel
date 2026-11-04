@@ -436,7 +436,7 @@ export default function ReportsPage() {
                       foot="مجموع مبالغ دریافتی از امدادخواهان (بدون بارهای کنسلی)"
                     />
                     <StatCard
-                      label="سهم امدادگران (کارکرد)"
+                      label="سهم خودرو چاره"
                       value={formatAmount(data.finance?.commission ?? 0)}
                       icon="🧾"
                       tone="brand"
@@ -470,7 +470,7 @@ export default function ReportsPage() {
                               <th>نوع بار</th>
                               <th>تعداد</th>
                               <th>دریافتی</th>
-                              <th>سهم امدادگر</th>
+                              <th>سهم خودرو چاره</th>
                               <th>پرداخت‌شده</th>
                               <th>مانده</th>
                             </tr>
@@ -509,7 +509,7 @@ export default function ReportsPage() {
 
                     <div>
                       <h3 className="card-title" style={{ marginBottom: 12 }}>
-                        <span className="dot" /> امدادگران با بیشترین مانده
+                        <span className="dot" /> امدادگران با بیشترین مانده بدهی
                       </h3>
                       {(data.unpaidRescuers || []).length ? (
                         <div className="table-wrap">
@@ -518,7 +518,7 @@ export default function ReportsPage() {
                               <tr>
                                 <th>امدادگر</th>
                                 <th>بار</th>
-                                <th>کارکرد</th>
+                                <th>سهم خودرو چاره</th>
                                 <th>پرداخت‌شده</th>
                                 <th>مانده</th>
                               </tr>

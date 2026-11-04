@@ -186,7 +186,7 @@ export default function DashboardPage() {
             </StatLink>
             <StatLink href="/loads?paid=false">
               <StatCard
-                label="مانده پرداخت امدادگران"
+                label="مانده سهم خودرو چاره"
                 value={formatAmount(data.finance?.unpaid ?? 0)}
                 icon="⏳"
                 tone="danger"
@@ -195,7 +195,7 @@ export default function DashboardPage() {
             </StatLink>
             <StatLink href="/loads?paid=true">
               <StatCard
-                label="سهم پرداخت‌شده‌ی امدادگران"
+                label="سهم خودرو چاره‌ی پرداخت‌شده"
                 value={formatAmount(data.finance?.paid ?? 0)}
                 icon="✅"
                 tone="success"
@@ -208,7 +208,7 @@ export default function DashboardPage() {
                 value={formatAmount(data.finance?.received ?? 0)}
                 icon="💵"
                 tone="teal"
-                foot={`سهم امدادگران: ${formatAmount(data.finance?.commission ?? 0)} تومان`}
+                foot={`سهم خودرو چاره: ${formatAmount(data.finance?.commission ?? 0)} تومان`}
               />
             </StatLink>
             <StatLink href="/rescuers">
