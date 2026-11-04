@@ -5,15 +5,10 @@ import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/components/ToastProvider';
 import { api, downloadExport } from '@/lib/api';
 import { CANCEL_REASON_SUGGESTIONS, FOLLOW_UPS, STATUSES, STATUS_MAP } from '@/lib/constants';
-import {
-  addDaysISO,
-  faDate,
-  faDateShort,
-  faDateWithWeekday,
-  faNumber,
-  initials,
-  todayISO,
-} from '@/lib/format';
+import { addDaysISO, faDate, faDateWithWeekday, faNumber, todayISO } from '@/lib/format';
+import { jalaliDateTimeLabel } from '@/lib/jalali';
+import JalaliDateInput from '@/components/JalaliDateInput';
+import Link from 'next/link';
 import LoadFormModal from '@/components/LoadFormModal';
 import {
   Badge,
@@ -72,9 +67,25 @@ export default function LoadsPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
+    const followUp = params.get('followUp');
     const date = params.get('date');
-    if (status) setFilters((current) => ({ ...current, status }));
-    if (date) setFilters((current) => ({ ...current, mode: 'custom', date }));
+    const mode = params.get('mode');
+
+    setFilters((current) => {
+      const next = { ...current };
+      if (status) next.status = status;
+      if (followUp) next.followUp = followUp;
+      if (date) {
+        next.mode = 'custom';
+        next.date = date;
+      } else if (mode === 'today') {
+        next.mode = 'today';
+      } else if (mode === 'range') {
+        // «بازه»ی داشبورد = ۷ روز اخیر
+        next.mode = 'week';
+      }
+      return next;
+    });
   }, []);
 
   // ---- debounce search input ----
@@ -148,6 +159,8 @@ export default function LoadsPage() {
     setFilters((current) => ({
       ...current,
       mode,
+      from: '',
+      to: '',
       date: mode === 'custom' ? current.date || todayISO() : mode === 'today' ? todayISO() : current.date,
       page: 1,
     }));
@@ -329,9 +342,12 @@ export default function LoadsPage() {
           <span className="chip warning">
             در انتظار <b>{faNumber(summary.pending)}</b>
           </span>
-          <span className="chip">
-            پیگیری انجام‌شده <b>{faNumber(summary.followUpDone)}</b>
-          </span>
+          <Link href="/follow-ups/done" className="chip success">
+            پیگیری انجام‌شده <b>{faNumber(summary.followUpDone ?? 0)}</b>
+          </Link>
+          <Link href="/follow-ups/not_done" className="chip warning">
+            پیگیری انجام‌نشده <b>{faNumber(summary.followUpNotDone ?? 0)}</b>
+          </Link>
         </div>
       ) : null}
 
@@ -351,13 +367,11 @@ export default function LoadsPage() {
           </div>
 
           {filters.mode === 'custom' ? (
-            <input
-              type="date"
+            <JalaliDateInput
               value={filters.date}
-              onChange={(event) =>
-                setFilters((current) => ({ ...current, date: event.target.value, page: 1 }))
-              }
-              aria-label="انتخاب تاریخ"
+              onChange={(iso) => setFilters((current) => ({ ...current, date: iso, page: 1 }))}
+              ariaLabel="انتخاب تاریخ شمسی"
+              allowToday
             />
           ) : null}
 
@@ -438,19 +452,14 @@ export default function LoadsPage() {
                     return (
                       <tr key={item.id}>
                         <td className="nowrap">
-                          <span className="strong">{faDateShort(item.loadDate)}</span>
-                          <span className="sub">{faDate(item.loadDate)}</span>
+                          <span className="strong">{jalaliDateTimeLabel(item.createdAt)}</span>
+                          <span className="sub">تاریخ بار: {faDate(item.loadDate)}</span>
                         </td>
-                        <td>
-                          <div className="person">
-                            <span className="avatar gray">{initials(item.customerName)}</span>
-                            <div>
-                              <div className="person-name">{item.customerName}</div>
-                              <div className="person-meta" dir="ltr">
-                                {item.customerPhone}
-                              </div>
-                            </div>
-                          </div>
+                        <td className="customer-cell">
+                          <span className="customer-name">{item.customerName}</span>
+                          <a className="customer-phone" href={`tel:${item.customerPhone}`} dir="ltr">
+                            {item.customerPhone}
+                          </a>
                         </td>
                         <td>
                           <span className="strong">{item.cityName || '—'}</span>

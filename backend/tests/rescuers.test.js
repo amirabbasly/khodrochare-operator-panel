@@ -173,3 +173,56 @@ test('جزئیات امدادگر همراه آمار و آخرین بارها �
   assert.ok(details.body.item.stats.total > 0);
   assert.ok(Array.isArray(details.body.recentLoads));
 });
+
+test('اپراتور شهر و محدوده را به صورت متن آزاد تایپ می‌کند (بدون انتخاب از فهرست)', async () => {
+  const response = await request(app)
+    .post('/api/rescuers')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({
+      firstName: 'حسین',
+      lastName: 'منطقه‌ای',
+      phone: '09121112233',
+      vehicle: 'ایسوزو',
+      plate: '۳۳ب۳۳۳-۲۲',
+      zoneName: 'محدوده‌ی آزاد تست',
+      cityName: 'شهر آزاد تست',
+      workType: 'transport',
+    });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.item.zoneName, 'محدوده‌ی آزاد تست');
+  assert.equal(response.body.item.cityName, 'شهر آزاد تست');
+  assert.ok(response.body.item.zoneId);
+  assert.ok(response.body.item.cityId);
+
+  // جست‌وجو بر اساس همان شهری که اپراتور تایپ کرده است
+  const search = await request(app)
+    .get('/api/rescuers?q=شهر آزاد تست')
+    .set('Authorization', `Bearer ${operatorToken}`);
+  assert.equal(search.status, 200);
+  assert.ok(search.body.items.some((item) => item.lastName === 'منطقه‌ای'));
+});
+
+test('ویرایش محدوده با نام متنی جدید، منطقه‌ی قبلی را بازنویسی می‌کند', async () => {
+  const created = await request(app)
+    .post('/api/rescuers')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({
+      firstName: 'رضا',
+      lastName: 'ویرایش‌شده',
+      vehicle: 'پیکان',
+      plate: '۴۴ج۴۴۴-۳۳',
+      zoneName: 'محدوده‌ی قدیمی',
+      cityName: 'شهر قدیمی',
+      workType: 'both',
+    });
+
+  const updated = await request(app)
+    .patch(`/api/rescuers/${created.body.item.id}`)
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({ zoneName: 'محدوده‌ی جدید', cityName: 'شهر جدید' });
+
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.item.zoneName, 'محدوده‌ی جدید');
+  assert.equal(updated.body.item.cityName, 'شهر جدید');
+});

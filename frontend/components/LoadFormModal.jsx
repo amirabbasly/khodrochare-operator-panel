@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { CANCEL_REASON_SUGGESTIONS, FOLLOW_UPS, STATUSES } from '@/lib/constants';
 import { normalizePhoneInput, todayISO } from '@/lib/format';
 import { Field, Modal } from '@/components/ui';
+import JalaliDateInput from '@/components/JalaliDateInput';
 import { useToast } from '@/components/ToastProvider';
 
 const emptyForm = {
@@ -13,7 +14,8 @@ const emptyForm = {
   customerPhone: '',
   vehicleName: '',
   carProblem: '',
-  cityId: '',
+  cityName: '',
+  zoneName: '',
   rescuerId: '',
   rescuerName: '',
   address: '',
@@ -47,7 +49,8 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
         customerPhone: initial.customerPhone || '',
         vehicleName: initial.vehicleName || '',
         carProblem: initial.carProblem || '',
-        cityId: initial.cityId ? String(initial.cityId) : '',
+        cityName: initial.cityName || '',
+        zoneName: initial.zoneName || '',
         rescuerId: hasKnownRescuer ? String(initial.rescuerId) : '',
         rescuerName: hasKnownRescuer ? '' : initial.rescuerName || '',
         address: initial.address || '',
@@ -62,14 +65,12 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
     }
   }, [open, initial, rescuers]);
 
-  const selectedCity = useMemo(() => {
-    if (!form.cityId) return null;
-    for (const zone of zones) {
-      const city = zone.cities.find((item) => String(item.id) === String(form.cityId));
-      if (city) return { ...city, zoneName: zone.name };
-    }
-    return null;
-  }, [form.cityId, zones]);
+  const citySuggestions = useMemo(
+    () => zones.flatMap((zone) => zone.cities.map((city) => city.name)),
+    [zones]
+  );
+
+  const zoneSuggestions = useMemo(() => zones.map((zone) => zone.name), [zones]);
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -111,7 +112,8 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
       customerPhone: normalizePhoneInput(form.customerPhone),
       vehicleName: form.vehicleName.trim(),
       carProblem: form.carProblem.trim(),
-      cityId: form.cityId ? Number(form.cityId) : null,
+      cityName: form.cityName.trim() || null,
+      zoneName: form.zoneName.trim() || null,
       rescuerId: !manualRescuer && form.rescuerId ? Number(form.rescuerId) : null,
       rescuerName: manualRescuer ? form.rescuerName.trim() : null,
       address: form.address.trim() || null,
@@ -161,12 +163,17 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
       }
     >
       <form id="load-form" onSubmit={handleSubmit} className="form-grid">
-        <Field label="تاریخ بار" required error={fieldErrors.loadDate}>
-          <input
-            type="date"
+        <Field
+          label="تاریخ بار (شمسی)"
+          required
+          error={fieldErrors.loadDate}
+          hint="به صورت ۱۴۰۴/۰۸/۱۳ تایپ کنید"
+        >
+          <JalaliDateInput
             value={form.loadDate}
-            onChange={(event) => update('loadDate', event.target.value)}
-            required
+            onChange={(iso) => update('loadDate', iso)}
+            ariaLabel="تاریخ شمسی بار"
+            allowToday
           />
         </Field>
 
@@ -212,22 +219,37 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
         </Field>
 
         <Field
-          label="شهر / محدوده امدادخواه"
-          hint={selectedCity ? `محدوده: ${selectedCity.zoneName}` : 'برای گزارش‌های منطقه‌ای استفاده می‌شود.'}
-          error={fieldErrors.cityId}
+          label="شهر"
+          error={fieldErrors.cityName}
+          hint="شهر را تایپ کنید؛ نام‌های تکرارشده به‌صورت پیشنهاد نمایش داده می‌شوند."
         >
-          <select value={form.cityId} onChange={(event) => update('cityId', event.target.value)}>
-            <option value="">— انتخاب شهر —</option>
-            {zones.map((zone) => (
-              <optgroup key={zone.id} label={zone.name}>
-                {zone.cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))}
-              </optgroup>
+          <input
+            type="text"
+            list="load-city-suggestions"
+            placeholder="مثلاً محمودآباد"
+            value={form.cityName}
+            onChange={(event) => update('cityName', event.target.value)}
+          />
+          <datalist id="load-city-suggestions">
+            {citySuggestions.map((name) => (
+              <option key={name} value={name} />
             ))}
-          </select>
+          </datalist>
+        </Field>
+
+        <Field label="محدوده" error={fieldErrors.zoneName} hint="محدوده‌ی فعالیت را خودتان تایپ کنید.">
+          <input
+            type="text"
+            list="load-zone-suggestions"
+            placeholder="مثلاً محدوده‌ی مرکزی"
+            value={form.zoneName}
+            onChange={(event) => update('zoneName', event.target.value)}
+          />
+          <datalist id="load-zone-suggestions">
+            {zoneSuggestions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
         </Field>
 
         <Field

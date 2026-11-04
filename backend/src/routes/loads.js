@@ -26,6 +26,7 @@ const { authRequired, adminOnly } = require('../middleware/auth');
 const { todayStr } = require('../utils/dates');
 const { assertDayOpen } = require('../services/dayClosure');
 const { toSearchTokens, rebuildLoadSearchText } = require('../services/searchIndex');
+const { resolveLocation } = require('../utils/locations');
 
 const router = express.Router();
 
@@ -123,7 +124,8 @@ router.get(
               SUM(CASE WHEN l.status = 'confirmed' THEN 1 ELSE 0 END)::int AS confirmed,
               SUM(CASE WHEN l.status = 'cancelled' THEN 1 ELSE 0 END)::int AS cancelled,
               SUM(CASE WHEN l.status = 'pending' THEN 1 ELSE 0 END)::int AS pending,
-              SUM(CASE WHEN l.follow_up = 'done' THEN 1 ELSE 0 END)::int AS follow_up_done
+              SUM(CASE WHEN l.follow_up = 'done' THEN 1 ELSE 0 END)::int AS follow_up_done,
+              SUM(CASE WHEN l.follow_up = 'not_done' THEN 1 ELSE 0 END)::int AS follow_up_not_done
        ${LOAD_FROM} ${where.sql}`,
       where.params
     );
@@ -141,6 +143,7 @@ router.get(
         cancelled: Number(summaryRow?.cancelled || 0),
         pending: Number(summaryRow?.pending || 0),
         followUpDone: Number(summaryRow?.follow_up_done || 0),
+        followUpNotDone: Number(summaryRow?.follow_up_not_done || 0),
       },
       dayClosed: Boolean(dayClosedRow),
     });
@@ -239,6 +242,9 @@ const createSchema = z
     description: optionalText(1000),
     cityId: idSchema.nullish(),
     zoneId: idSchema.nullish(),
+    // شهر و محدوده به صورت متن آزف (تایپ اپراتور) هم پذیرفته می‌شود
+    cityName: optionalText(80),
+    zoneName: optionalText(80),
     status: statusEnum.optional().default('pending'),
     cancelReason: optionalText(200),
     followUp: followUpEnum.optional().default('not_done'),
@@ -252,18 +258,12 @@ const createSchema = z
     path: ['cancelReason'],
   });
 
-async function resolveLoadRelations(db, { cityId, zoneId, rescuerId, rescuerName }) {
-  let resolvedCityId = cityId ?? null;
-  let resolvedZoneId = zoneId ?? null;
+async function resolveLoadRelations(db, { cityId, zoneId, cityName, zoneName, rescuerId, rescuerName }) {
   let resolvedRescuerName = rescuerName ?? null;
 
-  if (cityId) {
-    const city = await db.one('SELECT id, zone_id,name FROM cities WHERE id = $1', [cityId]);
-    if (!city) {
-      throw ApiError.badRequest('شهر انتخاب‌شده معتبر نیست.', [{ field: 'cityId', message: 'شهر یافت نشد.' }]);
-    }
-    if (!zoneId) resolvedZoneId = city.zone_id;
-  }
+  const location = await resolveLocation(db, { cityId, zoneId, cityName, zoneName });
+  const resolvedCityId = location.cityId;
+  const resolvedZoneId = location.zoneId;
 
   if (rescuerId) {
     const rescuer = await db.one(
@@ -335,6 +335,8 @@ const updateSchema = z.object({
   description: optionalText(1000),
   cityId: idSchema.nullish(),
   zoneId: idSchema.nullish(),
+  cityName: optionalText(80),
+  zoneName: optionalText(80),
   status: statusEnum.optional(),
   cancelReason: optionalText(200),
   followUp: followUpEnum.optional(),
@@ -366,12 +368,17 @@ router.patch(
     }
 
     let location = {};
-    if ('cityId' in req.body || 'zoneId' in req.body) {
+    if (['cityId', 'zoneId', 'cityName', 'zoneName'].some((field) => field in req.body)) {
       const relations = await resolveLoadRelations(db, {
         cityId: data.cityId ?? null,
-        zoneId: data.zoneId ?? null,
+        zoneId: data.cityId ? null : data.zoneId ?? null,
+        cityName: data.cityName ?? null,
+        zoneName: data.cityName ? null : data.zoneName ?? null,
       });
-      location = { city_id: relations.cityId, zone_id: relations.zoneId };
+      location = {
+        city_id: data.cityName || 'cityId' in req.body ? relations.cityId : current.city_id || null,
+        zone_id: relations.zoneId ?? current.zone_id ?? null,
+      };
     }
 
     let rescuerFields = {};

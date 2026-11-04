@@ -16,6 +16,14 @@ import {
   TrendChart,
 } from '@/components/ui';
 
+function StatLink({ href, children }) {
+  return (
+    <Link href={href} className="stat-link" title="مشاهده‌ی جزئیات">
+      {children}
+    </Link>
+  );
+}
+
 const RANGES = [
   { label: 'امروز', days: 0 },
   { label: '۷ روز', days: 6 },
@@ -130,50 +138,62 @@ export default function DashboardPage() {
       {data ? (
         <>
           <div className="stat-grid">
-            <StatCard
-              label="کل بارهای بازه"
-              value={totals.loads}
-              icon="🚗"
-              tone="brand"
-              foot={`${faDateWithWeekday(data.range.from)} تا ${faDateWithWeekday(data.range.to)}`}
-            />
-            <StatCard
-              label="تایید شده"
-              value={totals.confirmed}
-              icon="✅"
-              tone="success"
-              foot={`${faPercent(totals.confirmationRate)} از کل بارها`}
-            />
-            <StatCard
-              label="کنسل شده"
-              value={totals.cancelled}
-              icon="⛔"
-              tone="danger"
-              foot={`${faPercent(totals.cancellationRate)} نرخ کنسلی`}
-            />
-            <StatCard
-              label="در انتظار بررسی"
-              value={totals.pending}
-              icon="⏳"
-              tone="warning"
-              foot={`${faPercent(totals.pendingRate)} از کل بارها`}
-            />
-            <StatCard
-              label="بارهای امروز"
-              value={today.total}
-              icon="📅"
-              tone="teal"
-              foot={`تایید ${faNumber(today.confirmed)} · کنسل ${faNumber(today.cancelled)}`}
-            />
-            <StatCard
-              label="امدادگران فعال"
-              value={data.counts.rescuers.active}
-              icon="🧰"
-              tone="purple"
-              foot={`از ${faNumber(data.counts.rescuers.total)} امدادگر · ${faNumber(
-                data.counts.rescuers.garages
-              )} تعمیرگاهی`}
-            />
+            <StatLink href="/loads?mode=range">
+              <StatCard
+                label="کل بارهای بازه"
+                value={totals.loads}
+                icon="🚗"
+                tone="brand"
+                foot={`${faDateWithWeekday(data.range.from)} تا ${faDateWithWeekday(data.range.to)}`}
+              />
+            </StatLink>
+            <StatLink href="/loads?status=confirmed&mode=range">
+              <StatCard
+                label="تایید شده"
+                value={totals.confirmed}
+                icon="✅"
+                tone="success"
+                foot={`${faPercent(totals.confirmationRate)} از کل بارها — مشاهده‌ی جزئیات`}
+              />
+            </StatLink>
+            <StatLink href="/loads?status=cancelled&mode=range">
+              <StatCard
+                label="کنسل شده"
+                value={totals.cancelled}
+                icon="⛔"
+                tone="danger"
+                foot={`${faPercent(totals.cancellationRate)} نرخ کنسلی — دلایل کنسلی`}
+              />
+            </StatLink>
+            <StatLink href="/loads?status=pending&mode=range">
+              <StatCard
+                label="در انتظار بررسی"
+                value={totals.pending}
+                icon="⏳"
+                tone="warning"
+                foot={`${faPercent(totals.pendingRate)} از کل بارها — مشاهده‌ی فهرست`}
+              />
+            </StatLink>
+            <StatLink href="/loads?mode=today">
+              <StatCard
+                label="بارهای امروز"
+                value={today.total}
+                icon="📅"
+                tone="teal"
+                foot={`تایید ${faNumber(today.confirmed)} · کنسل ${faNumber(today.cancelled)}`}
+              />
+            </StatLink>
+            <StatLink href="/rescuers">
+              <StatCard
+                label="امدادگران فعال"
+                value={data.counts.rescuers.active}
+                icon="🧰"
+                tone="purple"
+                foot={`از ${faNumber(data.counts.rescuers.total)} امدادگر · ${faNumber(
+                  data.counts.rescuers.garages
+                )} تعمیرگاهی`}
+              />
+            </StatLink>
           </div>
 
           <div className="grid grid-sidebar section-gap">
@@ -197,12 +217,12 @@ export default function DashboardPage() {
               <TrendChart data={data.trend} />
             </Card>
 
-            <Card title="وضعیت پیگیری" hint="نتیجه‌ی تماس با امدادخواه">
+            <Card title="وضعیت پیگیری" hint="برای دیدن فهرست بارها روی هر ردیف کلیک کنید">
               <div className="bar-list">
-                <div className="flex-between">
-                  <span className="text-sm">پیگیری انجام شد</span>
+                <Link href="/follow-ups/done" className="flex-between follow-link">
+                  <span className="text-sm">✅ پیگیری انجام شد — مشاهده‌ی فهرست</span>
                   <span className="badge badge-success">{faNumber(totals.followUpDone)}</span>
-                </div>
+                </Link>
                 <div className="bar-track">
                   <div
                     className="bar-fill success"
@@ -211,10 +231,10 @@ export default function DashboardPage() {
                     }}
                   />
                 </div>
-                <div className="flex-between mt-12">
-                  <span className="text-sm">پیگیری انجام نشد</span>
+                <Link href="/follow-ups/not_done" className="flex-between mt-12 follow-link">
+                  <span className="text-sm">⏳ پیگیری انجام نشد — مشاهده‌ی فهرست</span>
                   <span className="badge badge-warning">{faNumber(totals.followUpNotDone)}</span>
-                </div>
+                </Link>
                 <div className="bar-track">
                   <div
                     className="bar-fill warning"
@@ -350,6 +370,12 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   <>
+                    <Link href="/follow-ups/done" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>
+                      ✅ پیگیری‌های انجام‌شده
+                    </Link>
+                    <Link href="/follow-ups/not_done" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>
+                      ⏳ پیگیری‌های انجام‌نشده
+                    </Link>
                     <Link href="/loads?status=pending" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>
                       ⏳ بارهای در انتظار
                     </Link>

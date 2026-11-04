@@ -6,13 +6,19 @@ const { getDb } = require('../db');
 const { ApiError, asyncHandler } = require('../utils/http');
 
 const USER_COLUMNS =
-  'id, first_name, last_name, username, phone, national_id, role, is_active, last_login_at, created_at, updated_at';
+  'id, first_name, last_name, username, phone, national_id, role, is_active, last_login_at, created_at, updated_at, token_version';
 
 function signToken(user) {
   return jwt.sign(
-    { sub: user.id, role: user.role, username: user.username },
+    {
+      sub: user.id,
+      role: user.role,
+      username: user.username,
+      // با هر تغییر رمز توسط مدیر یک واحد بالا می‌رود ⇒ همه‌ی نشست‌های قبلی باطل می‌شوند
+      tv: Number(user.token_version || 0),
+    },
     config.jwt.secret,
-    { expiresIn: config.jwt.expiresIn }
+    { expiresIn: config.jwt.expiresIn, algorithm: 'HS256' }
   );
 }
 
@@ -29,7 +35,7 @@ const authRequired = asyncHandler(async (req, _res, next) => {
 
   let payload;
   try {
-    payload = jwt.verify(token, config.jwt.secret);
+    payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
   } catch (error) {
     throw ApiError.unauthorized(
       error.name === 'TokenExpiredError'
@@ -44,6 +50,12 @@ const authRequired = asyncHandler(async (req, _res, next) => {
   if (!row) throw ApiError.unauthorized('حساب کاربری یافت نشد.');
   if (!row.is_active) throw ApiError.forbidden('حساب کاربری شما غیرفعال شده است.');
 
+  // رمز عبور بعد از صدور توکن عوض شده است ⇒ نشست باید باطل شود
+  if (Number(payload.tv || 0) !== Number(row.token_version || 0)) {
+    throw ApiError.unauthorized('رمز عبور این حساب تغییر کرده است؛ دوباره وارد شوید.');
+  }
+
+  delete row.token_version;
   req.user = row;
   req.userId = row.id;
   req.userRole = row.role;
@@ -62,42 +74,4 @@ function requireRole(...roles) {
 
 const adminOnly = requireRole('admin');
 
-/** محدودکننده‌ی ساده‌ی تلاش ورود (در حافظه) */
-function createLoginRateLimiter() {
-  const attempts = new Map();
-  const { windowMs, max } = config.loginRateLimit;
-
-  const cleanup = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of attempts) {
-      if (entry.resetAt <= now) attempts.delete(key);
-    }
-  }, Math.max(windowMs, 60000));
-  if (cleanup.unref) cleanup.unref();
-
-  return function loginRateLimiter(req, _res, next) {
-    if (config.isTest) return next();
-
-    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
-    const key = `${ip}:${String(req.body?.username || '').toLowerCase()}`;
-    const now = Date.now();
-    const entry = attempts.get(key);
-
-    if (!entry || entry.resetAt <= now) {
-      attempts.set(key, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-
-    if (entry.count >= max) {
-      const minutes = Math.ceil((entry.resetAt - now) / 60000);
-      return next(
-        ApiError.conflict(`تلاش‌های ناموفق زیاد بوده است؛ ${minutes} دقیقه‌ی دیگر دوباره تلاش کنید.`)
-      );
-    }
-
-    entry.count += 1;
-    return next();
-  };
-}
-
-module.exports = { signToken, authRequired, requireRole, adminOnly, createLoginRateLimiter, USER_COLUMNS };
+module.exports = { signToken, authRequired, requireRole, adminOnly, USER_COLUMNS };

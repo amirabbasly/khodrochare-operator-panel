@@ -86,14 +86,20 @@ export default function PanelShell({ children }) {
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            className="sidebar-logout"
-            onClick={() => setPasswordOpen(true)}
-            style={{ marginBottom: 8 }}
-          >
-            🔑 تغییر رمز عبور
-          </button>
+          {user.role === 'admin' ? (
+            <button
+              type="button"
+              className="sidebar-logout"
+              onClick={() => setPasswordOpen(true)}
+              style={{ marginBottom: 8 }}
+            >
+              🔑 تغییر رمز عبور
+            </button>
+          ) : (
+            <div className="sidebar-hint" style={{ marginBottom: 8 }}>
+              🔒 رمز عبور و اطلاعات حساب فقط توسط مدیر تغییر می‌کند
+            </div>
+          )}
           <button type="button" className="sidebar-logout" onClick={logout}>
             خروج از حساب
           </button>
@@ -128,7 +134,9 @@ export default function PanelShell({ children }) {
         <main className="content">{children}</main>
       </div>
 
-      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      {user.role === 'admin' ? (
+        <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      ) : null}
     </div>
   );
 }

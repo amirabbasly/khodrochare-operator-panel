@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { getDb, closeDb, runSchema } = require('./index');
 const { backfillSearchText } = require('../services/searchIndex');
+const { BCRYPT_ROUNDS, hashPassword } = require('../services/passwords');
 
 /** اگر ستون وجود نداشت، آن را اضافه می‌کند (مهاجرت سازگار با نسخه‌های قبلی) */
 async function ensureColumn(db, table, column, definition) {
@@ -39,6 +40,12 @@ async function migrate({ quiet = false } = {}) {
     }
   }
 
+  // ستون‌های امنیتی نسخه‌های جدید (برای پایگاه‌داده‌های قدیمی)
+  await ensureColumn(db, 'users', 'token_version', 'INTEGER NOT NULL DEFAULT 0');
+  await ensureColumn(db, 'users', 'failed_attempts', 'INTEGER NOT NULL DEFAULT 0');
+  await ensureColumn(db, 'users', 'locked_until', 'TIMESTAMPTZ');
+  await ensureColumn(db, 'users', 'password_changed_at', 'TIMESTAMPTZ');
+
   const userCount = Number(await db.scalar('SELECT COUNT(*)::int AS count FROM users'));
   let createdAdmin = false;
 
@@ -47,7 +54,7 @@ async function migrate({ quiet = false } = {}) {
     await db.query(
       `INSERT INTO users (first_name, last_name, username, password_hash, role, is_active)
        VALUES ($1, $2, $3, $4, 'admin', TRUE)`,
-      [firstName, lastName, username, bcrypt.hashSync(password, 10)]
+      [firstName, lastName, username, hashPassword(password)]
     );
     createdAdmin = true;
   }

@@ -1,6 +1,6 @@
 'use strict';
 
-const bcrypt = require('bcryptjs');
+const { hashPassword } = require('../services/passwords');
 const { addDays, todayStr } = require('../utils/dates');
 const { generateNationalId } = require('../utils/nationalId');
 const { buildSearchText } = require('../services/searchIndex');
@@ -116,7 +116,7 @@ async function ensureAdmin(db) {
   const inserted = await db.one(
     `INSERT INTO users (first_name, last_name, username, password_hash, phone, national_id, role)
      VALUES ('مدیر', 'سیستم', 'admin', $1, '02133445566', '0012345679', 'admin') RETURNING id`,
-    [bcrypt.hashSync('admin12345', 10)]
+    [hashPassword('admin12345')]
   );
   return inserted.id;
 }
@@ -144,7 +144,7 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
         operator.firstName,
         operator.lastName,
         operator.username,
-        bcrypt.hashSync(operator.password, 10),
+        hashPassword(operator.password),
         operator.phone,
         generateNationalId(random),
       ]
