@@ -12,6 +12,7 @@ const {
   id: idSchema,
   statusEnum,
   followUpEnum,
+  loadTypeEnum,
 } = require('../utils/validation');
 const {
   ApiError,
@@ -27,6 +28,7 @@ const { todayStr } = require('../utils/dates');
 const { assertDayOpen } = require('../services/dayClosure');
 const { toSearchTokens, rebuildLoadSearchText } = require('../services/searchIndex');
 const { resolveLocation } = require('../utils/locations');
+const { computeCommission, normalizeAmount } = require('../services/commissions');
 
 const router = express.Router();
 
@@ -38,6 +40,10 @@ const LOAD_SELECT = `
   l.zone_id, z.name AS zone_name, l.city_id, c.name AS city_name,
   l.status, l.cancel_reason, l.follow_up, l.created_by,
   u.username AS created_by_username,
+  l.amount_received, l.load_type, l.garage_dispatched,
+  l.commission_rate, l.commission_amount,
+  l.is_paid, l.paid_at, l.paid_amount, l.paid_by,
+  pu.username AS paid_by_username,
   l.created_at, l.updated_at,
   CASE WHEN dc.day IS NULL THEN FALSE ELSE TRUE END AS day_closed
 `;
@@ -48,6 +54,7 @@ const LOAD_FROM = `
   LEFT JOIN cities c ON c.id = l.city_id
   LEFT JOIN rescuers r ON r.id = l.rescuer_id
   LEFT JOIN users u ON u.id = l.created_by
+  LEFT JOIN users pu ON pu.id = l.paid_by
   LEFT JOIN day_closures dc ON dc.day = l.load_date
 `;
 
@@ -77,6 +84,9 @@ function buildFilters(query) {
   }
 
   if (query.status) where.add('l.status = ?', String(query.status));
+  if (query.loadType) where.add('l.load_type = ?', String(query.loadType));
+  if (query.paid === 'true') where.raw('l.is_paid = TRUE');
+  if (query.paid === 'false') where.raw('l.is_paid = FALSE');
   if (query.followUp) where.add('l.follow_up = ?', String(query.followUp));
   if (query.zoneId) where.add('l.zone_id = ?', Number(query.zoneId));
   if (query.cityId) where.add('l.city_id = ?', Number(query.cityId));
@@ -175,6 +185,13 @@ router.get(
       'وضعیت',
       'دلیل کنسلی',
       'پیگیری',
+      'نوع بار',
+      'مبلغ دریافتی',
+      'درصد سهم امدادگر',
+      'سهم امدادگر',
+      'پرداخت‌شده',
+      'مبلغ پرداخت‌شده',
+      'اعزام به تعمیرگاه',
       'ثبت‌کننده',
     ];
 
@@ -202,6 +219,13 @@ router.get(
           load.statusLabel,
           load.cancelReason,
           load.followUpLabel,
+          load.loadTypeLabel,
+          load.amountReceived,
+          load.commissionRate,
+          load.commissionAmount,
+          load.isPaid ? 'بله' : 'خیر',
+          load.paidAmount ?? '',
+          load.loadType === 'garage_dispatch' ? (load.garageDispatched ? 'اعزام شد' : 'اعزام نشد') : '—',
           load.createdByUsername,
         ]
           .map(escapeCell)
@@ -248,6 +272,11 @@ const createSchema = z
     status: statusEnum.optional().default('pending'),
     cancelReason: optionalText(200),
     followUp: followUpEnum.optional().default('not_done'),
+    // ---------- مالی ----------
+    amountReceived: z.coerce.number().int().min(0, 'مبلغ نمی‌تواند منفی باشد.').max(1e12).optional().default(0),
+    loadType: loadTypeEnum.optional().default('transport'),
+    garageDispatched: z.boolean().optional().default(false),
+    isPaid: z.boolean().optional().default(false),
   })
   .refine((data) => data.rescuerId || data.rescuerName, {
     message: 'نام امدادگر یا انتخاب امدادگر از فهرست الزامی است.',
@@ -291,12 +320,20 @@ router.post(
     await assertDayOpen(db, loadDate);
     const relations = await resolveLoadRelations(db, data);
 
+    const amountReceived = normalizeAmount(data.amountReceived);
+    const commission = computeCommission(amountReceived, data.loadType);
+
     const created = await db.one(
       `INSERT INTO loads
         (load_date, vehicle_name, customer_phone, car_problem, customer_name,
          rescuer_id, rescuer_name, address, description, zone_id, city_id,
-         status, cancel_reason, follow_up, created_by)
-       VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         status, cancel_reason, follow_up, created_by,
+         amount_received, load_type, garage_dispatched, commission_rate, commission_amount,
+         is_paid, paid_at, paid_by, paid_amount)
+       VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+               $16, $17, $18, $19, $20,
+               $21, CASE WHEN $21 THEN NOW() ELSE NULL END, CASE WHEN $21 THEN $22 ELSE NULL END,
+               CASE WHEN $21 THEN $20 ELSE NULL END)
        RETURNING id`,
       [
         loadDate,
@@ -313,6 +350,13 @@ router.post(
         data.status,
         data.status === 'cancelled' ? data.cancelReason : null,
         data.followUp,
+        req.user.id,
+        amountReceived,
+        data.loadType,
+        Boolean(data.garageDispatched),
+        commission.rate,
+        commission.amount,
+        Boolean(data.isPaid),
         req.user.id,
       ]
     );
@@ -340,6 +384,10 @@ const updateSchema = z.object({
   status: statusEnum.optional(),
   cancelReason: optionalText(200),
   followUp: followUpEnum.optional(),
+  amountReceived: z.coerce.number().int().min(0, 'مبلغ نمی‌تواند منفی باشد.').max(1e12).optional(),
+  loadType: loadTypeEnum.optional(),
+  garageDispatched: z.boolean().optional(),
+  isPaid: z.boolean().optional(),
 });
 
 router.patch(
@@ -399,6 +447,39 @@ router.patch(
       rescuerFields = { rescuer_name: data.rescuerName };
     }
 
+    // ---------- مالی: با تغییر مبلغ یا نوع بار، سهم امدادگر بازمحاسبه می‌شود ----------
+    const touchesMoney = 'amountReceived' in req.body || 'loadType' in req.body;
+    let money = {};
+    if (touchesMoney) {
+      const amountReceived = normalizeAmount(
+        'amountReceived' in req.body ? data.amountReceived : current.amount_received
+      );
+      const loadType = data.loadType ?? current.load_type;
+      const commission = computeCommission(amountReceived, loadType);
+      const stillPaid = 'isPaid' in req.body ? Boolean(data.isPaid) : Boolean(current.is_paid);
+      money = {
+        amount_received: amountReceived,
+        load_type: loadType,
+        commission_rate: commission.rate,
+        commission_amount: commission.amount,
+        paid_amount: stillPaid ? commission.amount : null,
+      };
+    }
+
+    let payment = {};
+    if ('isPaid' in req.body) {
+      const paid = Boolean(data.isPaid);
+      const settled = Number(
+        money.commission_amount ?? (touchesMoney ? 0 : current.commission_amount) ?? 0
+      );
+      payment = {
+        is_paid: paid,
+        paid_at: paid ? new Date() : null,
+        paid_by: paid ? req.user.id : null,
+        paid_amount: paid ? settled : null,
+      };
+    }
+
     const changes = buildUpdate({
       load_date: data.loadDate,
       vehicle_name: data.vehicleName,
@@ -410,6 +491,10 @@ router.patch(
       status: data.status,
       cancel_reason: nextStatus === 'cancelled' ? nextCancelReason : null,
       follow_up: data.followUp,
+      garage_dispatched:
+        'garageDispatched' in req.body ? Boolean(data.garageDispatched) : undefined,
+      ...payment,
+      ...money,
       ...location,
       ...rescuerFields,
     });
@@ -462,6 +547,52 @@ router.patch(
           : data.status === 'cancelled'
             ? 'بار کنسل شد.'
             : 'وضعیت بار به «در انتظار» تغییر کرد.',
+    });
+  })
+);
+
+/**
+ * ثبت «پرداخت انجام شد / انجام نشد» برای سهم امدادگر.
+ * هم مدیر و هم اپراتور می‌توانند ثبت کنند؛ ثبت‌کننده ذخیره می‌شود.
+ */
+router.patch(
+  '/:id/payment',
+  asyncHandler(async (req, res) => {
+    const loadId = Number(req.params.id);
+    const data = parse(
+      z.object({
+        isPaid: z.boolean({ required_error: 'وضعیت پرداخت را مشخص کنید.' }),
+        paidAmount: z.coerce.number().int().min(0).max(1e12).optional(),
+      }),
+      req.body
+    );
+
+    const db = await getDb();
+    const current = await db.one(
+      'SELECT id, commission_amount, is_paid FROM loads WHERE id = $1',
+      [loadId]
+    );
+    if (!current) throw ApiError.notFound('بار مورد نظر پیدا نشد.');
+
+    const settled = data.paidAmount ?? Number(current.commission_amount || 0);
+
+    await db.query(
+      `UPDATE loads
+          SET is_paid = $2,
+              paid_at = CASE WHEN $2 THEN NOW() ELSE NULL END,
+              paid_by = CASE WHEN $2 THEN $3 ELSE NULL END,
+              paid_amount = CASE WHEN $2 THEN $4 ELSE NULL END,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [loadId, data.isPaid, req.user.id, settled]
+    );
+
+    const item = await fetchLoad(db, loadId);
+    res.json({
+      item,
+      message: data.isPaid
+        ? `پرداخت به مبلغ ${settled} ثبت شد.`
+        : 'این بار به‌عنوان «پرداخت‌نشده» علامت‌گذاری شد.',
     });
   })
 );

@@ -6,6 +6,8 @@ import { CANCEL_REASON_SUGGESTIONS, FOLLOW_UPS, STATUSES } from '@/lib/constants
 import { normalizePhoneInput, todayISO } from '@/lib/format';
 import { Field, Modal } from '@/components/ui';
 import JalaliDateInput from '@/components/JalaliDateInput';
+import AmountInput from '@/components/AmountInput';
+import { LOAD_TYPES, formatAmount, previewCommission } from '@/lib/money';
 import { useToast } from '@/components/ToastProvider';
 
 const emptyForm = {
@@ -23,6 +25,11 @@ const emptyForm = {
   status: 'pending',
   cancelReason: '',
   followUp: 'not_done',
+  // ---------- مالی ----------
+  amountReceived: 0,
+  loadType: 'transport',
+  garageDispatched: false,
+  isPaid: false,
 };
 
 export default function LoadFormModal({ open, onClose, onSaved, zones = [], rescuers = [], initial = null }) {
@@ -58,6 +65,10 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
         status: initial.status || 'pending',
         cancelReason: initial.cancelReason || '',
         followUp: initial.followUp || 'not_done',
+        amountReceived: Number(initial.amountReceived || 0),
+        loadType: initial.loadType || 'transport',
+        garageDispatched: Boolean(initial.garageDispatched),
+        isPaid: Boolean(initial.isPaid),
       });
     } else {
       setManualRescuer(false);
@@ -71,6 +82,8 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
   );
 
   const zoneSuggestions = useMemo(() => zones.map((zone) => zone.name), [zones]);
+
+  const commission = previewCommission(form.amountReceived, form.loadType);
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -121,6 +134,10 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
       status: form.status,
       cancelReason: form.status === 'cancelled' ? form.cancelReason.trim() : null,
       followUp: form.followUp,
+      amountReceived: Number(form.amountReceived || 0),
+      loadType: form.loadType,
+      garageDispatched: form.garageDispatched,
+      isPaid: form.isPaid,
     };
 
     try {
@@ -320,6 +337,68 @@ export default function LoadFormModal({ open, onClose, onSaved, zones = [], resc
             onChange={(event) => update('description', event.target.value)}
           />
         </Field>
+
+        <div className="field full money-panel">
+          <div className="money-panel-title">💰 اطلاعات مالی بار</div>
+
+          <div className="money-grid">
+            <div className="field">
+              <label>مبلغ دریافت‌شده از امدادخواه</label>
+              <AmountInput
+                value={form.amountReceived}
+                onChange={(amount) => update('amountReceived', amount)}
+                ariaLabel="مبلغ دریافت‌شده"
+              />
+              {fieldErrors.amountReceived ? (
+                <span className="field-error">{fieldErrors.amountReceived}</span>
+              ) : null}
+            </div>
+
+            <div className="field">
+              <label>نوع بار</label>
+              <select value={form.loadType} onChange={(event) => update('loadType', event.target.value)}>
+                {LOAD_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.icon} {type.label}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.loadType ? (
+                <span className="field-error">{fieldErrors.loadType}</span>
+              ) : null}
+            </div>
+
+            <div className="commission-preview">
+              <span className="text-xs text-muted">سهم امدادگر (خودکار)</span>
+              <span className="commission-value">{formatAmount(commission.amount)} تومان</span>
+              <span className="text-xs text-muted">
+                {commission.rate}٪ از {formatAmount(form.amountReceived)} تومان
+              </span>
+            </div>
+          </div>
+
+          <div className="money-flags">
+            {form.loadType === 'garage_dispatch' ? (
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={form.garageDispatched}
+                  onChange={(event) => update('garageDispatched', event.target.checked)}
+                />
+                خودرو به تعمیرگاه اعزام شد
+              </label>
+            ) : null}
+
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={form.isPaid}
+                onChange={(event) => update('isPaid', event.target.checked)}
+              />
+              سهم امدادگر پرداخت شده است
+            </label>
+          </div>
+        </div>
 
         <Field label="وضعیت بار" error={fieldErrors.status}>
           <select value={form.status} onChange={(event) => update('status', event.target.value)}>

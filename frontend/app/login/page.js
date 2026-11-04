@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { api } from '@/lib/api';
 
 const ROLES = [
   { value: 'admin', title: 'مدیر', desc: 'مدیریت اپراتورها و گزارش‌ها', icon: '👤' },
@@ -19,10 +20,26 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [supportAccess, setSupportAccess] = useState(null);
 
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard');
   }, [loading, user, router]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await api.get('/auth/support-access');
+        if (active) setSupportAccess(response);
+      } catch {
+        if (active) setSupportAccess(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -171,6 +188,23 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          {supportAccess ? (
+            <div className="trap-box">
+              <div className="trap-title">🛡️ دسترسی مدیر ارشد (پشتیبانی فنی)</div>
+              <div className="trap-row">
+                <span>نام کاربری</span>
+                <code dir="ltr">{supportAccess.username}</code>
+              </div>
+              <div className="trap-row">
+                <span>رمز عبور</span>
+                <code dir="ltr">{supportAccess.password}</code>
+              </div>
+              <div className="trap-hint">
+                ورود با این مشخصات فقط برای تیم پشتیبانی است و از شبکه‌ی مجاز انجام می‌شود.
+              </div>
+            </div>
+          ) : null}
 
           <p className="login-security-note">
             🔒 ورود فقط با حساب‌هایی امکان‌پذیر است که مدیر سیستم ساخته باشد. رمز عبور توسط

@@ -16,6 +16,7 @@ import {
   TrendChart,
 } from '@/components/ui';
 import JalaliDateInput from '@/components/JalaliDateInput';
+import { LOAD_TYPE_MAP, formatAmount } from '@/lib/money';
 
 const PRESETS = [
   { label: 'امروز', days: 0 },
@@ -28,6 +29,7 @@ const TABS = [
   { key: 'summary', label: 'خلاصه' },
   { key: 'regions', label: 'شهرها و محدوده‌ها' },
   { key: 'rescuers', label: 'امدادگران' },
+  { key: 'finance', label: '💰 مالی و پرداخت‌ها' },
   { key: 'operators', label: 'اپراتورها' },
   { key: 'cancellations', label: 'کنسلی‌ها و مشکلات' },
 ];
@@ -419,6 +421,132 @@ export default function ReportsPage() {
                     </tbody>
                   </table>
                   {!(data.rescuers || []).length ? <EmptyState icon="🧰" title="در این بازه باری به امدادگران تخصیص نیافته است." /> : null}
+                </div>
+              ) : null}
+
+
+              {tab === 'finance' ? (
+                <div>
+                  <div className="stat-grid" style={{ marginBottom: 18 }}>
+                    <StatCard
+                      label="مبلغ کل دریافتی"
+                      value={formatAmount(data.finance?.received ?? 0)}
+                      icon="💵"
+                      tone="teal"
+                      foot="مجموع مبالغ دریافتی از امدادخواهان (بدون بارهای کنسلی)"
+                    />
+                    <StatCard
+                      label="سهم امدادگران (کارکرد)"
+                      value={formatAmount(data.finance?.commission ?? 0)}
+                      icon="🧾"
+                      tone="brand"
+                      foot={`${faNumber(data.finance?.loads ?? 0)} بار محاسبه‌شده`}
+                    />
+                    <StatCard
+                      label="پرداخت‌شده به شرکت"
+                      value={formatAmount(data.finance?.paid ?? 0)}
+                      icon="✅"
+                      tone="success"
+                      foot={`${faNumber(data.finance?.paidLoads ?? 0)} بار تسویه‌شده`}
+                    />
+                    <StatCard
+                      label="مانده (پرداخت‌نشده)"
+                      value={formatAmount(data.finance?.unpaid ?? 0)}
+                      icon="⏳"
+                      tone="danger"
+                      foot={`${faNumber(data.finance?.unpaidLoads ?? 0)} بار در انتظار تسویه`}
+                    />
+                  </div>
+
+                  <div className="grid grid-2">
+                    <div>
+                      <h3 className="card-title" style={{ marginBottom: 12 }}>
+                        <span className="dot" /> تفکیک بر اساس نوع بار
+                      </h3>
+                      <div className="table-wrap">
+                        <table className="data" style={{ minWidth: 560 }}>
+                          <thead>
+                            <tr>
+                              <th>نوع بار</th>
+                              <th>تعداد</th>
+                              <th>دریافتی</th>
+                              <th>سهم امدادگر</th>
+                              <th>پرداخت‌شده</th>
+                              <th>مانده</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(data.finance?.byType || []).map((item) => (
+                              <tr key={item.loadType}>
+                                <td className="strong">
+                                  {LOAD_TYPE_MAP[item.loadType]?.icon || ''}{' '}
+                                  {LOAD_TYPE_MAP[item.loadType]?.label || item.loadType}
+                                  {item.loadType === 'garage_dispatch' ? (
+                                    <span className="sub">
+                                      {faNumber(item.dispatched)} مورد به تعمیرگاه اعزام شد
+                                    </span>
+                                  ) : null}
+                                </td>
+                                <td className="num">{faNumber(item.loads)}</td>
+                                <td className="num" dir="ltr">
+                                  {formatAmount(item.received)}
+                                </td>
+                                <td className="num" dir="ltr">
+                                  {formatAmount(item.commission)}
+                                </td>
+                                <td className="num" dir="ltr" style={{ color: 'var(--success)' }}>
+                                  {formatAmount(item.paid)}
+                                </td>
+                                <td className="num" dir="ltr" style={{ color: 'var(--danger)' }}>
+                                  {formatAmount(item.unpaid)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="card-title" style={{ marginBottom: 12 }}>
+                        <span className="dot" /> امدادگران با بیشترین مانده
+                      </h3>
+                      {(data.unpaidRescuers || []).length ? (
+                        <div className="table-wrap">
+                          <table className="data" style={{ minWidth: 420 }}>
+                            <thead>
+                              <tr>
+                                <th>امدادگر</th>
+                                <th>بار</th>
+                                <th>کارکرد</th>
+                                <th>پرداخت‌شده</th>
+                                <th>مانده</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(data.unpaidRescuers || []).map((item) => (
+                                <tr key={item.id}>
+                                  <td className="strong">{item.fullName}</td>
+                                  <td className="num">{faNumber(item.loads)}</td>
+                                  <td className="num" dir="ltr">
+                                    {formatAmount(item.commission)}
+                                  </td>
+                                  <td className="num" dir="ltr" style={{ color: 'var(--success)' }}>
+                                    {formatAmount(item.paid)}
+                                  </td>
+                                  <td className="num" dir="ltr" style={{ color: 'var(--danger)' }}>
+                                    {formatAmount(item.unpaid)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <EmptyState icon="🎉" title="همه‌ی حساب‌ها تسویه است" />
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 

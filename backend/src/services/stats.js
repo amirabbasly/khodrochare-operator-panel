@@ -56,6 +56,96 @@ async function loadTotals(db, from, to) {
   };
 }
 
+/** خلاصه‌ی مالی بازه: مبلغ دریافتی، سهم امدادگران، پرداخت‌شده و مانده */
+async function financeSummary(db, from, to) {
+  const row = await db.one(
+    `SELECT COUNT(*)::int AS loads,
+            SUM(amount_received) AS received,
+            SUM(commission_amount) AS commission,
+            SUM(CASE WHEN is_paid THEN commission_amount ELSE 0 END) AS paid,
+            SUM(CASE WHEN is_paid THEN 0 ELSE commission_amount END) AS unpaid,
+            SUM(CASE WHEN is_paid THEN 1 ELSE 0 END)::int AS paid_loads,
+            SUM(CASE WHEN is_paid THEN 0 ELSE 1 END)::int AS unpaid_loads
+     FROM loads
+     WHERE load_date BETWEEN $1::date AND $2::date AND status <> 'cancelled'`,
+    [from, to]
+  );
+
+  const typeRows = await db.many(
+    `SELECT load_type,
+            COUNT(*)::int AS loads,
+            SUM(amount_received) AS received,
+            SUM(commission_amount) AS commission,
+            SUM(CASE WHEN is_paid THEN commission_amount ELSE 0 END) AS paid,
+            SUM(CASE WHEN is_paid THEN 0 ELSE commission_amount END) AS unpaid,
+            SUM(CASE WHEN garage_dispatched THEN 1 ELSE 0 END)::int AS dispatched
+     FROM loads
+     WHERE load_date BETWEEN $1::date AND $2::date AND status <> 'cancelled'
+     GROUP BY load_type`,
+    [from, to]
+  );
+
+  const typeMap = new Map(typeRows.map((item) => [item.load_type, item]));
+  const byType = ['transport', 'onsite_repair', 'garage_dispatch'].map((type) => {
+    const item = typeMap.get(type) || {};
+    return {
+      loadType: type,
+      loads: num(item.loads),
+      received: num(item.received),
+      commission: num(item.commission),
+      paid: num(item.paid),
+      unpaid: num(item.unpaid),
+      dispatched: num(item.dispatched),
+    };
+  });
+
+  return {
+    loads: num(row?.loads),
+    received: num(row?.received),
+    commission: num(row?.commission),
+    paid: num(row?.paid),
+    unpaid: num(row?.unpaid),
+    paidLoads: num(row?.paid_loads),
+    unpaidLoads: num(row?.unpaid_loads),
+    byType,
+  };
+}
+
+/** امدادگرانی که بیشترین مبلغ پرداخت‌نشده را دارند */
+async function unpaidByRescuer(db, from, to, lookups, limit = 10) {
+  const rows = await db.many(
+    `SELECT rescuer_id,
+            COUNT(*)::int AS loads,
+            SUM(commission_amount) AS commission,
+            SUM(CASE WHEN is_paid THEN commission_amount ELSE 0 END) AS paid
+     FROM loads
+     WHERE load_date BETWEEN $1::date AND $2::date
+       AND status <> 'cancelled'
+       AND rescuer_id IS NOT NULL
+     GROUP BY rescuer_id`,
+    [from, to]
+  );
+
+  return rows
+    .filter((row) => row.rescuer_id !== null && row.rescuer_id !== undefined)
+    .map((row) => {
+      const rescuer = lookups.rescuers.get(Number(row.rescuer_id));
+      const commission = num(row.commission);
+      const paid = num(row.paid);
+      return {
+        id: Number(row.rescuer_id),
+        fullName: rescuer ? `${rescuer.first_name} ${rescuer.last_name}`.trim() : 'نامشخص',
+        loads: num(row.loads),
+        commission,
+        paid,
+        unpaid: Math.max(0, commission - paid),
+      };
+    })
+    .filter((item) => item.unpaid > 0)
+    .sort((a, b) => b.unpaid - a.unpaid)
+    .slice(0, limit);
+}
+
 async function groupByZone(db, from, to, lookups) {
   const rows = await db.many(
     `SELECT zone_id, ${STATUS_SUM}
@@ -111,7 +201,9 @@ async function groupByRescuer(db, from, to, lookups) {
             COUNT(*)::int AS total,
             SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END)::int AS confirmed,
             SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END)::int AS cancelled,
-            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::int AS pending
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END)::int AS pending,
+            SUM(CASE WHEN status <> 'cancelled' THEN commission_amount ELSE 0 END) AS billed,
+            SUM(CASE WHEN status <> 'cancelled' AND is_paid THEN commission_amount ELSE 0 END) AS paid
      FROM loads
      WHERE load_date BETWEEN $1::date AND $2::date
      GROUP BY rescuer_id`,
@@ -135,6 +227,9 @@ async function groupByRescuer(db, from, to, lookups) {
         cancelled: num(row.cancelled),
         pending: num(row.pending),
         cancellationRate: rate(num(row.cancelled), total),
+        billedAmount: num(row.billed),
+        paidAmount: num(row.paid),
+        unpaidAmount: Math.max(0, num(row.billed) - num(row.paid)),
       };
     })
     .sort((a, b) => b.total - a.total);
@@ -337,6 +432,7 @@ async function buildOverview(db, { from, to }) {
     countsRow,
     workTypes,
     todayTotals,
+    finance,
   ] = await Promise.all([
     loadTotals(db, from, to),
     groupByZone(db, from, to, lookups),
@@ -348,6 +444,7 @@ async function buildOverview(db, { from, to }) {
     counts(db),
     rescuersByWorkType(db, from, to),
     loadTotals(db, today, today),
+    financeSummary(db, from, to),
   ]);
 
   const byConfirmed = [...rescuerRows].sort((a, b) => b.confirmed - a.confirmed).slice(0, 6);
@@ -377,20 +474,25 @@ async function buildOverview(db, { from, to }) {
     problems,
     trend,
     workTypes,
+    finance,
   };
 }
 
 async function buildDetailed(db, { from, to }) {
   const overview = await buildOverview(db, { from, to });
-  const [operators, months] = await Promise.all([
+  const lookups = await loadLookups(db);
+  const [operators, months, unpaidRescuers] = await Promise.all([
     operatorPerformance(db, from, to),
     monthlyTrend(db, from, to),
+    unpaidByRescuer(db, from, to, lookups),
   ]);
 
-  return { ...overview, operators, monthlyTrend: months };
+  return { ...overview, operators, monthlyTrend: months, unpaidRescuers };
 }
 
 module.exports = {
+  financeSummary,
+  unpaidByRescuer,
   buildOverview,
   buildDetailed,
   operatorPerformance,

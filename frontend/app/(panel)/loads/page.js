@@ -7,6 +7,7 @@ import { api, downloadExport } from '@/lib/api';
 import { CANCEL_REASON_SUGGESTIONS, FOLLOW_UPS, STATUSES, STATUS_MAP } from '@/lib/constants';
 import { addDaysISO, faDate, faDateWithWeekday, faNumber, todayISO } from '@/lib/format';
 import { jalaliDateTimeLabel } from '@/lib/jalali';
+import { LOAD_TYPES, LOAD_TYPE_MAP, formatAmount } from '@/lib/money';
 import JalaliDateInput from '@/components/JalaliDateInput';
 import Link from 'next/link';
 import LoadFormModal from '@/components/LoadFormModal';
@@ -42,6 +43,8 @@ export default function LoadsPage() {
     q: '',
     status: '',
     followUp: '',
+    loadType: '',
+    paid: '',
     cityId: '',
     page: 1,
     limit: 20,
@@ -122,6 +125,8 @@ export default function LoadsPage() {
       q: filters.q || undefined,
       status: filters.status || undefined,
       followUp: filters.followUp || undefined,
+      loadType: filters.loadType || undefined,
+      paid: filters.paid || undefined,
       cityId: filters.cityId || undefined,
       page: filters.page,
       limit: filters.limit,
@@ -181,6 +186,19 @@ export default function LoadsPage() {
     try {
       const next = loadItem.followUp === 'done' ? 'not_done' : 'done';
       const response = await api.patch(`/loads/${loadItem.id}/follow-up`, { followUp: next });
+      toast.success(response.message);
+      refresh();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const togglePayment = async (loadItem) => {
+    setBusyId(loadItem.id);
+    try {
+      const response = await api.patch(`/loads/${loadItem.id}/payment`, { isPaid: !loadItem.isPaid });
       toast.success(response.message);
       refresh();
     } catch (requestError) {
@@ -399,6 +417,21 @@ export default function LoadsPage() {
             ))}
           </select>
 
+          <select value={filters.loadType} onChange={(event) => updateFilter('loadType', event.target.value)}>
+            <option value="">همه نوع‌های بار</option>
+            {LOAD_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.icon} {type.label}
+              </option>
+            ))}
+          </select>
+
+          <select value={filters.paid} onChange={(event) => updateFilter('paid', event.target.value)}>
+            <option value="">همه پرداخت‌ها</option>
+            <option value="true">پرداخت‌شده</option>
+            <option value="false">پرداخت‌نشده</option>
+          </select>
+
           <select value={filters.cityId} onChange={(event) => updateFilter('cityId', event.target.value)}>
             <option value="">همه شهرها</option>
             {zones.map((zone) => (
@@ -439,6 +472,8 @@ export default function LoadsPage() {
                     <th>شهر / محدوده</th>
                     <th>خودرو / مشکل</th>
                     <th>امدادگر</th>
+                    <th>مبلغ / نوع بار</th>
+                    <th>سهم امدادگر</th>
                     <th>وضعیت</th>
                     <th>پیگیری</th>
                     <th>ثبت‌کننده</th>
@@ -472,6 +507,35 @@ export default function LoadsPage() {
                         <td>
                           <span className="strong">{item.rescuerName || '—'}</span>
                           {item.address ? <span className="sub">{item.address}</span> : null}
+                        </td>
+                        <td className="money-cell">
+                          <span className="strong" dir="ltr">
+                            {formatAmount(item.amountReceived)}
+                          </span>
+                          <span className="sub">
+                            {LOAD_TYPE_MAP[item.loadType]?.icon || ''} {item.loadTypeLabel}
+                            {item.loadType === 'garage_dispatch'
+                              ? item.garageDispatched
+                                ? ' · اعزام شد'
+                                : ' · اعزام نشد'
+                              : ''}
+                          </span>
+                        </td>
+                        <td className="money-cell">
+                          <span className="strong" dir="ltr">
+                            {formatAmount(item.commissionAmount)}
+                          </span>
+                          <span className="sub">{item.commissionRate}٪ سهم امدادگر</span>
+                          <button
+                            type="button"
+                            className={`badge ${item.isPaid ? 'badge-success' : 'badge-warning'}`}
+                            onClick={() => togglePayment(item)}
+                            disabled={busy}
+                            title="برای تغییر وضعیت پرداخت کلیک کنید"
+                            style={{ cursor: 'pointer', marginTop: 4 }}
+                          >
+                            {item.isPaid ? '✅ پرداخت شد' : '⏳ پرداخت نشد'}
+                          </button>
                         </td>
                         <td>
                           <Badge tone={status.tone}>
