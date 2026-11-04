@@ -1,6 +1,18 @@
 'use strict';
 
-require('dotenv').config();
+const fs = require('node:fs');
+const path = require('node:path');
+const dotenv = require('dotenv');
+
+// فایل‌های .env ممکن است در ریشه‌ی پروژه یا پوشه‌ی backend باشند
+// (dotenv مقادیر موجود را بازنویسی نمی‌کند، پس ترتیب اهمیت دارد)
+for (const candidate of [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../.env'),
+]) {
+  if (fs.existsSync(candidate)) dotenv.config({ path: candidate });
+}
 
 const env = process.env.NODE_ENV || 'development';
 const isProd = env === 'production';

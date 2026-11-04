@@ -200,8 +200,21 @@ npm run build       # بیلد production فرانت‌اند
 
 ## 🖥 دیپلوی روی سرور
 
-راهنمای گام‌به‌گام (Docker + Nginx + SSL + بکاپ + آپدیت) در فایل
-[`DEPLOY.md`](./DEPLOY.md) آمده است.
+دو راهنما در دسترس است:
+
+- [`DEPLOY.md`](./DEPLOY.md) — راهنمای عمومی دیپلوی (Docker یا PM2) روی هر سرور
+- [`DEPLOY-KHODROCHARE.md`](./DEPLOY-KHODROCHARE.md) — راهنمای اختصاصی سرور فعلی
+  (`panel.khodrochare.ir` در مسیر `/var/www/khodrochare-panel` با پورت‌های ۳۱۰۰/۴۱۰۰)
+
+فایل‌های آماده‌ی دیپلوی در پوشه‌ی [`deploy/`](./deploy) قرار دارند:
+
+```
+deploy/
+├── ecosystem.config.cjs              # پیکربندی PM2 (API + Web)
+├── deploy.sh                         # اسکریپت دیپلوی/آپدیت یک‌مرحله‌ای
+├── create-db.sh                      # ساخت کاربر و دیتابیس اختصاصی
+└── nginx/panel.khodrochare.ir.conf   # کانفیگ Nginx آماده
+```
 
 ---
 

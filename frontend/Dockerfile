@@ -9,6 +9,7 @@ RUN npm ci --workspace frontend --include-workspace-root && npm cache clean --fo
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV BUILD_STANDALONE=true
 # آدرس API هنگام build در rewrites ثبت می‌شود
 ARG API_PROXY_TARGET=http://api:4000
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
