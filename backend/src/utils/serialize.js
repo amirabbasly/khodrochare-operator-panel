@@ -74,6 +74,8 @@ function publicRescuer(row) {
       ),
       paidLoads: Number(row.paid_loads || 0),
       unpaidLoads: Number(row.unpaid_loads || 0),
+      // درآمد واقعی امدادگر = مبلغ دریافتی منهای سهم خودرو چاره
+      earnedAmount: Number(row.earned_amount || 0),
     },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -109,6 +111,11 @@ function publicLoad(row) {
     garageDispatched: Boolean(row.garage_dispatched),
     commissionRate: Number(row.commission_rate || 0),
     commissionAmount: Number(row.commission_amount || 0),
+    // سهم امدادگر = مبلغ دریافتی منهای سهم خودرو چاره
+    rescuerShare: Math.max(
+      0,
+      Number(row.amount_received || 0) - Number(row.commission_amount || 0)
+    ),
     isPaid: Boolean(row.is_paid),
     paidAt: row.paid_at || null,
     paidAmount: row.paid_amount === null || row.paid_amount === undefined ? null : Number(row.paid_amount),

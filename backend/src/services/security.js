@@ -14,6 +14,33 @@ const config = require('../config');
 const CACHE_TTL_MS = Number(process.env.BAN_CACHE_TTL_MS || 15000);
 
 let cache = { at: 0, ips: new Set() };
+let tableReady = false;
+
+/**
+ * ساخت جدول banned_ips در صورت نبود (خودترمیمی).
+ * روی نصب‌هایی که مهاجرت هنگام بالا آمدن اجرا نشده است، این تابع
+ * بار اول که امنیت لازم شود جدول را می‌سازد تا API با خطای 500 نخوابد.
+ */
+async function ensureBanTable(db) {
+  if (tableReady) return true;
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS banned_ips (
+      ip VARCHAR(64) PRIMARY KEY,
+      reason VARCHAR(40) NOT NULL DEFAULT 'decoy_credentials',
+      username VARCHAR(60),
+      user_agent TEXT,
+      attempts INTEGER NOT NULL DEFAULT 1,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    tableReady = true;
+    return true;
+  } catch (error) {
+    console.warn(`⚠️ ساخت جدول banned_ips ناموفق بود: ${error.message}`);
+    return false;
+  }
+}
 
 function invalidateCache() {
   cache = { at: 0, ips: new Set() };
@@ -30,6 +57,7 @@ async function bannedSet(db) {
   if (cache.at && now - cache.at < CACHE_TTL_MS) return cache.ips;
 
   try {
+    await ensureBanTable(db);
     const rows = await db.many('SELECT ip FROM banned_ips WHERE is_active = TRUE');
     cache = { at: now, ips: new Set(rows.map((row) => normalizeIp(row.ip))) };
   } catch {
@@ -55,6 +83,9 @@ async function banIp(db, { ip, reason = 'decoy_credentials', username = null, us
   const safeUsername = username ? String(username).slice(0, 60) : null;
   const safeAgent = userAgent ? String(userAgent).slice(0, 300) : null;
 
+  const ready = await ensureBanTable(db);
+  if (!ready) return null;
+
   const existing = await db.one('SELECT ip FROM banned_ips WHERE ip = $1', [target]);
 
   if (existing) {
@@ -79,6 +110,7 @@ async function banIp(db, { ip, reason = 'decoy_credentials', username = null, us
 
 async function unbanIp(db, ip) {
   const target = normalizeIp(ip);
+  await ensureBanTable(db);
   await db.query('UPDATE banned_ips SET is_active = FALSE WHERE ip = $1', [target]);
   invalidateCache();
   return target;
@@ -99,6 +131,7 @@ function isDecoyAttempt({ username, password }) {
 
 module.exports = {
   normalizeIp,
+  ensureBanTable,
   isBanned,
   banIp,
   unbanIp,

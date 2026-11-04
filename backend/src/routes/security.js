@@ -20,6 +20,7 @@ router.get(
   '/bans',
   asyncHandler(async (req, res) => {
     const db = await getDb();
+    await security.ensureBanTable(db);
     const { page, limit, offset } = parsePagination(req.query, { defaultLimit: 25, maxLimit: 200 });
     const onlyActive = req.query.active !== 'false';
 

@@ -227,8 +227,8 @@ export default function FollowUpDetailPage() {
                     <th>خودرو / مشکل</th>
                     <th>امدادگر</th>
                     <th>شهر / محدوده</th>
-                    <th>آدرس و توضیحات</th>
-                    <th>مبلغ / سهم امدادگر</th>
+                    <th>آدرس امدادخواه / علت کنسلی</th>
+                    <th>مبلغ / سهم خودرو چاره</th>
                     <th>پرداخت</th>
                     <th>وضعیت بار</th>
                     <th>پیگیری</th>
@@ -263,6 +263,11 @@ export default function FollowUpDetailPage() {
                         </td>
                         <td className="wrap-cell">
                           <span className="text-sm">{item.address || '—'}</span>
+                          {item.cancelReason ? (
+                            <span className="sub" style={{ color: 'var(--danger)' }}>
+                              علت کنسلی: {item.cancelReason}
+                            </span>
+                          ) : null}
                           {item.description ? (
                             <span className="sub">{item.description}</span>
                           ) : null}
@@ -270,7 +275,10 @@ export default function FollowUpDetailPage() {
                         <td className="money-cell">
                           <span className="strong" dir="ltr">{formatAmount(item.amountReceived)}</span>
                           <span className="sub">
-                            {item.commissionRate}٪ = {formatAmount(item.commissionAmount)}
+                            {item.commissionRate}٪ خودرو چاره = {formatAmount(item.commissionAmount)}
+                          </span>
+                          <span className="sub" dir="ltr">
+                            سهم امدادگر: {formatAmount(item.rescuerShare ?? 0)}
                           </span>
                         </td>
                         <td>

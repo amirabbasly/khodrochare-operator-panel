@@ -473,7 +473,7 @@ export default function LoadsPage() {
                     <th>خودرو / مشکل</th>
                     <th>امدادگر</th>
                     <th>مبلغ / نوع بار</th>
-                    <th>سهم امدادگر</th>
+                    <th>سهم خودرو چاره</th>
                     <th>وضعیت</th>
                     <th>پیگیری</th>
                     <th>ثبت‌کننده</th>
@@ -525,7 +525,10 @@ export default function LoadsPage() {
                           <span className="strong" dir="ltr">
                             {formatAmount(item.commissionAmount)}
                           </span>
-                          <span className="sub">{item.commissionRate}٪ سهم امدادگر</span>
+                          <span className="sub">{item.commissionRate}٪ سهم خودرو چاره</span>
+                          <span className="sub" dir="ltr">
+                            سهم امدادگر: {formatAmount(item.rescuerShare ?? 0)}
+                          </span>
                           <button
                             type="button"
                             className={`badge ${item.isPaid ? 'badge-success' : 'badge-warning'}`}

@@ -2400,3 +2400,9 @@ a.stat-link:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+.rescuer-share {
+  margin-top: 4px;
+  color: var(--text, #0f172a);
+  font-weight: 600;
+}
