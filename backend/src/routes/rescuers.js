@@ -22,6 +22,7 @@ const {
 const { publicRescuer } = require('../utils/serialize');
 const { authRequired, adminOnly } = require('../middleware/auth');
 const { toSearchTokens, rebuildRescuerSearchText } = require('../services/searchIndex');
+const { resolveLocation } = require('../utils/locations');
 
 const router = express.Router();
 
@@ -59,6 +60,9 @@ const baseSchema = z.object({
   plate: text(30).min(1, 'پلاک خودرو را وارد کنید.'),
   zoneId: idSchema.nullish(),
   cityId: idSchema.nullish(),
+  // اپراتور شهر و محدوده را خودش تایپ می‌کند (ورودی متنی، نه انتخاب از فهرست)
+  zoneName: optionalText(80),
+  cityName: optionalText(80),
   workType: workTypeEnum,
   isActive: z.boolean().optional(),
   notes: optionalText(500),
@@ -68,21 +72,10 @@ const createSchema = baseSchema;
 
 const updateSchema = baseSchema.partial();
 
-async function resolveLocation(db, { cityId, zoneId }) {
-  let resolvedZoneId = zoneId ?? null;
-  if (cityId) {
-    const city = await db.one('SELECT id, zone_id FROM cities WHERE id = $1', [cityId]);
-    if (!city) {
-      throw ApiError.badRequest('شهر انتخاب‌شده معتبر نیست.', [{ field: 'cityId', message: 'شهر یافت نشد.' }]);
-    }
-    resolvedZoneId = zoneId ?? city.zone_id;
-  } else if (zoneId) {
-    const zone = await db.one('SELECT id FROM zones WHERE id = $1', [zoneId]);
-    if (!zone) {
-      throw ApiError.badRequest('محدوده انتخاب‌شده معتبر نیست.', [{ field: 'zoneId', message: 'محدوده یافت نشد.' }]);
-    }
-  }
-  return { cityId: cityId ?? null, zoneId: resolvedZoneId };
+const LOCATION_FIELDS = ['zoneId', 'cityId', 'zoneName', 'cityName'];
+
+function hasLocationInput(body) {
+  return LOCATION_FIELDS.some((field) => field in body);
 }
 
 function buildSearch(where, q) {
@@ -237,12 +230,18 @@ router.patch(
     if (!current) throw ApiError.notFound('امدادگر مورد نظر پیدا نشد.');
 
     let location = {};
-    if ('cityId' in req.body || 'zoneId' in req.body) {
+    if (hasLocationInput(req.body)) {
+      const wantsCity = Boolean(data.cityId) || Boolean(data.cityName);
       const resolved = await resolveLocation(db, {
         cityId: data.cityId ?? null,
+        cityName: data.cityName ?? null,
+        zoneName: data.zoneName ?? null,
         zoneId: data.zoneId ?? null,
       });
-      location = { city_id: resolved.cityId, zone_id: resolved.zoneId };
+      location = {
+        city_id: wantsCity ? resolved.cityId : current.city_id || null,
+        zone_id: resolved.zoneId ?? (wantsCity ? null : current.zone_id || null),
+      };
     }
 
     const changes = buildUpdate({

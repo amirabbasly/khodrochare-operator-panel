@@ -2127,3 +2127,152 @@ table.data .sub {
     box-shadow: none;
   }
 }
+
+/* ============================================================
+   افزوده‌های نسخه‌ی ۲: صفحات جزئیات، تاریخ شمسی، حساب کاربری
+   ============================================================ */
+
+/* کارت‌های آماری قابل کلیک (لینک به صفحات جزئیات) */
+a.stat-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-lg, 16px);
+  transition: transform 0.15s ease;
+}
+
+a.stat-link:hover {
+  transform: translateY(-2px);
+}
+
+a.stat-link:focus-visible {
+  outline: 2px solid var(--brand, #2563eb);
+  outline-offset: 3px;
+}
+
+/* ردیف‌های وضعیت پیگیری در داشبورد */
+.follow-link {
+  text-decoration: none;
+  color: inherit;
+  padding: 6px 8px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.follow-link:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+/* سلول امدادخواه: فقط نام و شماره، بدون باکس و آواتار */
+.customer-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.5;
+}
+
+.customer-name {
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.customer-phone {
+  font-size: 12.5px;
+  color: var(--text-muted, #64748b);
+  text-decoration: none;
+  letter-spacing: 0.4px;
+}
+
+.customer-phone:hover {
+  color: var(--brand, #2563eb);
+  text-decoration: underline;
+}
+
+.wrap-cell {
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* ورودی تاریخ شمسی */
+.jalali-input {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jalali-input input {
+  width: 132px;
+  text-align: center;
+  letter-spacing: 0.6px;
+}
+
+.jalali-input.invalid input {
+  border-color: var(--danger, #dc2626);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.jalali-error {
+  font-size: 11.5px;
+  color: var(--danger, #dc2626);
+}
+
+/* صفحه‌ی حساب من */
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--border, #e2e8f0);
+}
+
+.info-row:last-child {
+  border-bottom: 0;
+}
+
+.info-label {
+  font-size: 12.5px;
+  color: var(--text-muted, #64748b);
+}
+
+.info-value {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.info-value.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  direction: ltr;
+  letter-spacing: 0.5px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.sidebar-hint {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.login-security-note {
+  margin-top: 16px;
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+}

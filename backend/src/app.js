@@ -11,8 +11,21 @@ const { notFoundHandler, errorHandler } = require('./middleware/error');
 function createApp() {
   const app = express();
 
+  app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
+
+  // سخت‌گیری امنیتی روی همه‌ی پاسخ‌های API
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: false,
+      referrerPolicy: { policy: 'no-referrer' },
+      frameguard: { action: 'deny' },
+      noSniff: true,
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: false },
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+    })
+  );
 
   const corsOptions = config.cors.origins.length
     ? {

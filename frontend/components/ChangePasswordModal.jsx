@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, saveSession } from '@/lib/api';
 import { Field, Modal } from '@/components/ui';
 import { useToast } from '@/components/ToastProvider';
 
@@ -27,7 +27,10 @@ export default function ChangePasswordModal({ open, onClose }) {
     event.preventDefault();
     const nextErrors = {};
     if (!currentPassword) nextErrors.currentPassword = 'رمز فعلی را وارد کنید.';
-    if (newPassword.length < 8) nextErrors.newPassword = 'رمز جدید باید حداقل ۸ کاراکتر باشد.';
+    if (newPassword.length < 10) nextErrors.newPassword = 'رمز جدید باید حداقل ۱۰ کاراکتر باشد.';
+    else if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      nextErrors.newPassword = 'رمز جدید باید شامل حرف انگلیسی و عدد باشد.';
+    }
     if (newPassword !== confirmPassword) nextErrors.confirmPassword = 'تکرار رمز جدید مطابقت ندارد.';
 
     if (Object.keys(nextErrors).length) {
@@ -39,6 +42,7 @@ export default function ChangePasswordModal({ open, onClose }) {
     setFormError('');
     try {
       const response = await api.post('/auth/change-password', { currentPassword, newPassword });
+      if (response.token) saveSession({ token: response.token });
       toast.success(response.message || 'رمز عبور تغییر کرد.');
       onClose?.();
     } catch (error) {
@@ -82,7 +86,7 @@ export default function ChangePasswordModal({ open, onClose }) {
             autoComplete="current-password"
           />
         </Field>
-        <Field label="رمز عبور جدید" required error={errors.newPassword} className="full" hint="حداقل ۸ کاراکتر">
+        <Field label="رمز عبور جدید" required error={errors.newPassword} className="full" hint="حداقل ۱۰ کاراکتر، شامل حرف انگلیسی و عدد">
           <input
             type="password"
             dir="ltr"

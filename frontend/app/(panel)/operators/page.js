@@ -82,8 +82,12 @@ export default function OperatorsPage() {
 
   const submitPassword = async () => {
     if (!passwordTarget) return;
-    if (newPassword.length < 8) {
-      toast.error('رمز عبور باید حداقل ۸ کاراکتر باشد.');
+    if (newPassword.length < 10) {
+      toast.error('رمز عبور باید حداقل ۱۰ کاراکتر باشد.');
+      return;
+    }
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      toast.error('رمز عبور باید شامل حرف انگلیسی و عدد باشد.');
       return;
     }
     setBusy(true);
@@ -96,6 +100,16 @@ export default function OperatorsPage() {
       toast.error(requestError.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const unlockUser = async (operator) => {
+    try {
+      const response = await api.patch(`/users/${operator.id}/unlock`, {});
+      toast.success(response.message || 'قفل حساب برداشته شد.');
+      load();
+    } catch (requestError) {
+      toast.error(requestError.message);
     }
   };
 
@@ -293,6 +307,14 @@ export default function OperatorsPage() {
                           <button
                             type="button"
                             className="btn btn-icon"
+                            title="رفع قفل حساب (بعد از چند بار رمز اشتباه)"
+                            onClick={() => unlockUser(item)}
+                          >
+                            🔓
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-icon"
                             title={item.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
                             onClick={() => toggleActive(item)}
                             disabled={item.id === user?.id}
@@ -361,7 +383,7 @@ export default function OperatorsPage() {
           </>
         }
       >
-        <Field label="رمز عبور جدید" required hint="حداقل ۸ کاراکتر">
+        <Field label="رمز عبور جدید" required hint="حداقل ۱۰ کاراکتر، شامل حرف انگلیسی و عدد">
           <input
             type="text"
             dir="ltr"

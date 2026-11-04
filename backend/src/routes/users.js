@@ -1,7 +1,6 @@
 'use strict';
 
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const { getDb } = require('../db');
 const { parse, username: usernameSchema, password: passwordSchema, optionalPhone, optionalNationalId, text, optionalText } = require('../utils/validation');
@@ -15,6 +14,8 @@ const {
 } = require('../utils/http');
 const { publicUser } = require('../utils/serialize');
 const { authRequired, adminOnly, USER_COLUMNS } = require('../middleware/auth');
+const { hashPassword, passwordProblems } = require('../services/passwords');
+const { passwordPolicyFor } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -131,6 +132,15 @@ router.post(
     const data = parse(createSchema, req.body);
     const db = await getDb();
 
+    const problems = passwordProblems(data.password, {
+      username: data.username,
+      firstName: data.firstName,
+      lastName: data.lastName,
+    });
+    if (problems.length) {
+      throw ApiError.badRequest(problems[0], [{ field: 'password', message: problems[0] }]);
+    }
+
     const existing = await db.one('SELECT id FROM users WHERE username = $1', [data.username]);
     if (existing) {
       throw ApiError.conflict('این نام کاربری قبلاً استفاده شده است.', [
@@ -146,7 +156,7 @@ router.post(
         data.firstName,
         data.lastName,
         data.username,
-        bcrypt.hashSync(data.password, 10),
+        hashPassword(data.password),
         data.phone,
         data.nationalId,
         data.role,
@@ -220,6 +230,11 @@ router.patch(
       [...changes.params, id]
     );
 
+    if (data.isActive === false) {
+      // غیرفعال‌سازی فوری: همه‌ی نشست‌های فعال کاربر باطل می‌شوند
+      await db.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [id]);
+    }
+
     const statsMap = await loadStatsByUser(db, [id]);
     res.json({ item: withStats(updated, statsMap), message: 'اطلاعات کاربر به‌روزرسانی شد.' });
   })
@@ -232,15 +247,49 @@ router.patch(
     const data = parse(z.object({ newPassword: passwordSchema }), req.body);
     const db = await getDb();
 
+    const user = await db.one('SELECT * FROM users WHERE id = $1', [id]);
+    if (!user) throw ApiError.notFound('کاربر مورد نظر پیدا نشد.');
+
+    const problems = passwordProblems(data.newPassword, {
+      username: user.username,
+      firstName: user.first_name,
+      lastName: user.last_name,
+    });
+    if (problems.length) {
+      throw ApiError.badRequest(problems[0], [{ field: 'newPassword', message: problems[0] }]);
+    }
+
+    await db.query(
+      `UPDATE users
+         SET password_hash = $1, token_version = token_version + 1, password_changed_at = NOW(),
+             failed_attempts = 0, locked_until = NULL, updated_at = NOW()
+       WHERE id = $2`,
+      [hashPassword(data.newPassword), id]
+    );
+
+    res.json({
+      message: 'رمز عبور کاربر تغییر کرد و همه‌ی نشست‌های قبلی او بسته شد.',
+      passwordPolicy: passwordPolicyFor(),
+    });
+  })
+);
+
+/** رفع قفل موقت حساب (پس از چند بار رمز اشتباه) — فقط مدیر */
+router.patch(
+  '/:id/unlock',
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const db = await getDb();
+
     const user = await db.one('SELECT id FROM users WHERE id = $1', [id]);
     if (!user) throw ApiError.notFound('کاربر مورد نظر پیدا نشد.');
 
-    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [
-      bcrypt.hashSync(data.newPassword, 10),
-      id,
-    ]);
+    await db.query(
+      'UPDATE users SET failed_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $1',
+      [id]
+    );
 
-    res.json({ message: 'رمز عبور کاربر تغییر کرد.' });
+    res.json({ message: 'قفل حساب برداشته شد.' });
   })
 );
 

@@ -52,7 +52,12 @@ const username = z
   .toLowerCase()
   .regex(/^[a-z0-9._]{4,30}$/, 'نام کاربری باید ۴ تا ۳۰ کاراکتر و شامل حروف انگلیسی، عدد، نقطه یا خط زیر باشد.');
 
-const password = z.string().min(8, 'رمز عبور باید حداقل ۸ کاراکتر باشد.').max(72, 'رمز عبور طولانی است.');
+const password = z
+  .string({ required_error: 'رمز عبور را وارد کنید.' })
+  .min(10, 'رمز عبور باید حداقل ۱۰ کاراکتر باشد.')
+  .max(72, 'رمز عبور نباید بیشتر از ۷۲ کاراکتر باشد.')
+  .refine((value) => /[A-Za-z]/.test(value), 'رمز عبور باید حداقل یک حرف انگلیسی داشته باشد.')
+  .refine((value) => /\d/.test(value), 'رمز عبور باید حداقل یک عدد داشته باشد.');
 
 const statusEnum = z.enum(['pending', 'confirmed', 'cancelled'], {
   errorMap: () => ({ message: 'وضعیت باید یکی از pending / confirmed / cancelled باشد.' }),
@@ -65,6 +70,12 @@ const followUpEnum = z.enum(['done', 'not_done'], {
 const workTypeEnum = z.enum(['transport', 'onsite_repair', 'both', 'garage'], {
   errorMap: () => ({ message: 'نوع کار امدادگر معتبر نیست.' }),
 });
+
+/** سیاست رمز عبور برای نمایش در رابط کاربری */
+function passwordPolicyFor() {
+  const { PASSWORD_RULES } = require('../services/passwords');
+  return { minLength: 10, maxLength: 72, rules: PASSWORD_RULES };
+}
 
 function parse(schema, data) {
   const result = schema.safeParse(data);
@@ -81,6 +92,7 @@ function parse(schema, data) {
 module.exports = {
   z,
   parse,
+  passwordPolicyFor,
   phone,
   optionalPhone,
   nationalId,

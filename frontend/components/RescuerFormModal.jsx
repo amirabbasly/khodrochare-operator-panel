@@ -13,8 +13,8 @@ const emptyForm = {
   phone: '',
   vehicle: '',
   plate: '',
-  zoneId: '',
-  cityId: '',
+  zoneName: '',
+  cityName: '',
   workType: 'both',
   isActive: true,
   notes: '',
@@ -40,8 +40,8 @@ export default function RescuerFormModal({ open, onClose, onSaved, zones = [], i
         phone: initial.phone || '',
         vehicle: initial.vehicle || '',
         plate: initial.plate || '',
-        zoneId: initial.zoneId ? String(initial.zoneId) : '',
-        cityId: initial.cityId ? String(initial.cityId) : '',
+        zoneName: initial.zoneName || '',
+        cityName: initial.cityName || '',
         workType: initial.workType || 'both',
         isActive: initial.isActive !== false,
         notes: initial.notes || '',
@@ -51,11 +51,12 @@ export default function RescuerFormModal({ open, onClose, onSaved, zones = [], i
     }
   }, [open, initial]);
 
-  const cities = useMemo(() => {
-    if (!form.zoneId) return zones.flatMap((zone) => zone.cities.map((city) => ({ ...city, zoneName: zone.name })));
-    const zone = zones.find((item) => String(item.id) === String(form.zoneId));
-    return (zone?.cities || []).map((city) => ({ ...city, zoneName: zone.name }));
-  }, [form.zoneId, zones]);
+  // فقط برای پیشنهاد (datalist) — اپراتور آزادانه تایپ می‌کند
+  const zoneSuggestions = useMemo(() => zones.map((zone) => zone.name), [zones]);
+  const citySuggestions = useMemo(
+    () => zones.flatMap((zone) => zone.cities.map((city) => city.name)),
+    [zones]
+  );
 
   const update = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -87,8 +88,8 @@ export default function RescuerFormModal({ open, onClose, onSaved, zones = [], i
       phone: form.phone ? normalizePhoneInput(form.phone) : null,
       vehicle: form.vehicle.trim(),
       plate: form.plate.trim(),
-      zoneId: form.zoneId ? Number(form.zoneId) : null,
-      cityId: form.cityId ? Number(form.cityId) : null,
+      zoneName: form.zoneName.trim() || null,
+      cityName: form.cityName.trim() || null,
       workType: form.workType,
       isActive: form.isActive,
       notes: form.notes.trim() || null,
@@ -199,32 +200,42 @@ export default function RescuerFormModal({ open, onClose, onSaved, zones = [], i
           </select>
         </Field>
 
-        <Field label="محدوده فعالیت" error={fieldErrors.zoneId}>
-          <select
-            value={form.zoneId}
-            onChange={(event) => {
-              update('zoneId', event.target.value);
-              update('cityId', '');
-            }}
-          >
-            <option value="">— انتخاب محدوده —</option>
-            {zones.map((zone) => (
-              <option key={zone.id} value={zone.id}>
-                {zone.name}
-              </option>
+        <Field
+          label="محدوده فعالیت"
+          error={fieldErrors.zoneName}
+          hint="محدوده را خودتان تایپ کنید؛ نام‌های موجود پیشنهاد می‌شوند."
+        >
+          <input
+            type="text"
+            list="rescuer-zone-suggestions"
+            placeholder="مثلاً محدوده‌ی مرکزی تهران"
+            value={form.zoneName}
+            onChange={(event) => update('zoneName', event.target.value)}
+          />
+          <datalist id="rescuer-zone-suggestions">
+            {zoneSuggestions.map((name) => (
+              <option key={name} value={name} />
             ))}
-          </select>
+          </datalist>
         </Field>
 
-        <Field label="شهر فعالیت" error={fieldErrors.cityId}>
-          <select value={form.cityId} onChange={(event) => update('cityId', event.target.value)}>
-            <option value="">— انتخاب شهر —</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
+        <Field
+          label="شهر فعالیت"
+          error={fieldErrors.cityName}
+          hint="شهر را خودتان تایپ کنید؛ اگر جدید باشد ساخته می‌شود."
+        >
+          <input
+            type="text"
+            list="rescuer-city-suggestions"
+            placeholder="مثلاً محمودآباد"
+            value={form.cityName}
+            onChange={(event) => update('cityName', event.target.value)}
+          />
+          <datalist id="rescuer-city-suggestions">
+            {citySuggestions.map((name) => (
+              <option key={name} value={name} />
             ))}
-          </select>
+          </datalist>
         </Field>
 
         <Field label="توضیحات" error={fieldErrors.notes} className="full">

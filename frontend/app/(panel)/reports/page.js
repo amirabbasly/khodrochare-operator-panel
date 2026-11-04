@@ -15,6 +15,7 @@ import {
   StatCard,
   TrendChart,
 } from '@/components/ui';
+import JalaliDateInput from '@/components/JalaliDateInput';
 
 const PRESETS = [
   { label: 'امروز', days: 0 },
@@ -117,9 +118,9 @@ export default function ReportsPage() {
             ))}
           </div>
           <span className="filter-label">از تاریخ</span>
-          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} max={to} />
+          <JalaliDateInput value={from} onChange={setFrom} ariaLabel="از تاریخ شمسی" />
           <span className="filter-label">تا تاریخ</span>
-          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} min={from} />
+          <JalaliDateInput value={to} onChange={setTo} ariaLabel="تا تاریخ شمسی" allowToday />
           <div className="toolbar-spacer" />
           {data?.range ? (
             <span className="chip">

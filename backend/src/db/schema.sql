@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS users (
   role          VARCHAR(20)  NOT NULL DEFAULT 'operator',
   is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
   last_login_at TIMESTAMPTZ,
+  -- ستون‌های امنیتی: نسخه‌ی توکن، شمارش تلاش ناموفق و قفل موقت حساب
+  password_changed_at TIMESTAMPTZ,
+  token_version   INTEGER     NOT NULL DEFAULT 0,
+  failed_attempts INTEGER     NOT NULL DEFAULT 0,
+  locked_until    TIMESTAMPTZ,
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   CONSTRAINT users_role_check CHECK (role IN ('admin', 'operator'))

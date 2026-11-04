@@ -63,6 +63,13 @@ export const NAV_ITEMS = [
     roles: ['admin'],
   },
   {
+    href: '/account',
+    label: 'حساب من',
+    icon: '🪪',
+    description: 'مشاهده‌ی اطلاعات حساب',
+    roles: ['admin', 'operator'],
+  },
+  {
     href: '/reports',
     label: 'گزارش‌های کامل',
     icon: '📈',

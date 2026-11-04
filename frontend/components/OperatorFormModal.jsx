@@ -62,7 +62,14 @@ export default function OperatorFormModal({ open, onClose, onSaved, initial = nu
     if (!/^[a-z0-9._]{4,30}$/.test(form.username.trim().toLowerCase())) {
       errors.username = 'نام کاربری باید ۴ تا ۳۰ کاراکتر و شامل حروف انگلیسی، عدد، نقطه یا خط زیر باشد.';
     }
-    if (!isEdit && form.password.length < 8) errors.password = 'رمز عبور باید حداقل ۸ کاراکتر باشد.';
+    if (!isEdit) {
+      if (form.password.length < 10) errors.password = 'رمز عبور باید حداقل ۱۰ کاراکتر باشد.';
+      else if (!/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
+        errors.password = 'رمز عبور باید شامل حرف انگلیسی و عدد باشد.';
+      } else if (form.username && form.password.toLowerCase().includes(form.username.toLowerCase())) {
+        errors.password = 'رمز عبور نباید شامل نام کاربری باشد.';
+      }
+    }
     if (form.phone && !/^0\d{10}$/.test(normalizePhoneInput(form.phone))) {
       errors.phone = 'شماره تماس معتبر نیست.';
     }
@@ -161,7 +168,7 @@ export default function OperatorFormModal({ open, onClose, onSaved, initial = nu
         </Field>
 
         {!isEdit ? (
-          <Field label="رمز عبور" required error={fieldErrors.password} hint="حداقل ۸ کاراکتر">
+          <Field label="رمز عبور" required error={fieldErrors.password} hint="حداقل ۱۰ کاراکتر، شامل حرف انگلیسی و عدد (بدون نام کاربری)">
             <input
               type="text"
               dir="ltr"

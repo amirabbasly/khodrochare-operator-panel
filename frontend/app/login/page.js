@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { API_READY, DEMO_ACCOUNTS } from '@/lib/demo';
 
 const ROLES = [
   { value: 'admin', title: 'مدیر', desc: 'مدیریت اپراتورها و گزارش‌ها', icon: '👤' },
@@ -39,13 +38,6 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const fillDemo = (account) => {
-    setRole(account.role);
-    setUsername(account.username);
-    setPassword(account.password);
-    setError('');
   };
 
   return (
@@ -180,23 +172,10 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {API_READY ? (
-            <div className="demo-box">
-              <h4>حساب‌های نمایشی (برای تست سریع)</h4>
-              {DEMO_ACCOUNTS.map((account) => (
-                <div className="demo-row" key={account.username}>
-                  <span>{account.label}</span>
-                  <span className="flex-center gap-8">
-                    <code>{account.username}</code>
-                    <code>{account.password}</code>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => fillDemo(account)}>
-                      پر کردن
-                    </button>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <p className="login-security-note">
+            🔒 ورود فقط با حساب‌هایی امکان‌پذیر است که مدیر سیستم ساخته باشد. رمز عبور توسط
+            مدیر تعیین و در صورت فراموشی، از همان مسیر بازنشانی می‌شود.
+          </p>
         </div>
       </section>
     </div>

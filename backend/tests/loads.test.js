@@ -242,3 +242,49 @@ test('خروجی CSV بارها ساخته می‌شود', async () => {
   assert.match(response.headers['content-type'], /text\/csv/);
   assert.ok(response.text.includes('شماره تماس'));
 });
+
+test('ثبت بار با شهر و محدوده‌ی تایپ‌شده توسط اپراتور', async () => {
+  const response = await request(app)
+    .post('/api/loads')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({
+      ...validPayload(),
+      cityId: null,
+      cityName: 'شهر تایپی تست',
+      zoneName: 'محدوده‌ی تایپی تست',
+    });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.item.cityName, 'شهر تایپی تست');
+  assert.equal(response.body.item.zoneName, 'محدوده‌ی تایپی تست');
+});
+
+test('فیلتر پیگیری انجام‌شده/نشده و شمارش هر دو حالت', async () => {
+  const done = await request(app)
+    .post('/api/loads')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({ ...validPayload(), followUp: 'done' });
+  assert.equal(done.status, 201);
+
+  const notDone = await request(app)
+    .post('/api/loads')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({ ...validPayload(), followUp: 'not_done' });
+  assert.equal(notDone.status, 201);
+
+  const doneList = await request(app)
+    .get('/api/loads?followUp=done&limit=200')
+    .set('Authorization', `Bearer ${operatorToken}`);
+  assert.equal(doneList.status, 200);
+  assert.ok(doneList.body.items.every((item) => item.followUp === 'done'));
+  assert.ok(doneList.body.items.some((item) => item.id === done.body.item.id));
+
+  const notDoneList = await request(app)
+    .get('/api/loads?followUp=not_done&limit=200')
+    .set('Authorization', `Bearer ${operatorToken}`);
+  assert.equal(notDoneList.status, 200);
+  assert.ok(notDoneList.body.items.every((item) => item.followUp === 'not_done'));
+
+  assert.ok(doneList.body.summary.followUpDone >= 1);
+  assert.ok(notDoneList.body.summary.followUpNotDone >= 1);
+});
