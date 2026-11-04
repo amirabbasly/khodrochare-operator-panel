@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { STATUS_MAP } from '@/lib/constants';
 import { faDate, faNumber, todayISO } from '@/lib/format';
 import { jalaliDateTimeLabel } from '@/lib/jalali';
+import { formatAmount } from '@/lib/money';
 import { Card, EmptyState, Loader, Pagination, SearchInput } from '@/components/ui';
 import JalaliDateInput from '@/components/JalaliDateInput';
 
@@ -94,6 +95,19 @@ export default function FollowUpDetailPage() {
       active = false;
     };
   }, []);
+
+  const togglePayment = async (item) => {
+    setBusyId(item.id);
+    try {
+      const response = await api.patch(`/loads/${item.id}/payment`, { isPaid: !item.isPaid });
+      toast.success(response.message || 'وضعیت پرداخت تغییر کرد.');
+      load();
+    } catch (requestError) {
+      toast.error(requestError.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const toggle = async (item) => {
     setBusyId(item.id);
@@ -214,6 +228,8 @@ export default function FollowUpDetailPage() {
                     <th>امدادگر</th>
                     <th>شهر / محدوده</th>
                     <th>آدرس و توضیحات</th>
+                    <th>مبلغ / سهم امدادگر</th>
+                    <th>پرداخت</th>
                     <th>وضعیت بار</th>
                     <th>پیگیری</th>
                   </tr>
@@ -250,6 +266,23 @@ export default function FollowUpDetailPage() {
                           {item.description ? (
                             <span className="sub">{item.description}</span>
                           ) : null}
+                        </td>
+                        <td className="money-cell">
+                          <span className="strong" dir="ltr">{formatAmount(item.amountReceived)}</span>
+                          <span className="sub">
+                            {item.commissionRate}٪ = {formatAmount(item.commissionAmount)}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`badge ${item.isPaid ? 'badge-success' : 'badge-warning'}`}
+                            onClick={() => togglePayment(item)}
+                            disabled={busyId === item.id}
+                            title="برای تغییر وضعیت پرداخت کلیک کنید"
+                          >
+                            {item.isPaid ? '✅ پرداخت شد' : '⏳ پرداخت نشد'}
+                          </button>
                         </td>
                         <td>
                           <span className={`badge badge-${status.tone}`}>{status.label}</span>

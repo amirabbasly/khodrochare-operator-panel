@@ -6,6 +6,7 @@ import { useToast } from '@/components/ToastProvider';
 import { api } from '@/lib/api';
 import { WORK_TYPES, WORK_TYPE_MAP } from '@/lib/constants';
 import { faDate, faDateShort, faNumber, initials } from '@/lib/format';
+import { formatAmount } from '@/lib/money';
 import RescuerFormModal from '@/components/RescuerFormModal';
 import {
   Badge,
@@ -289,6 +290,20 @@ export default function RescuersPage() {
                             ✅ {faNumber(item.stats.confirmed)} · ⛔ {faNumber(item.stats.cancelled)}
                           </span>
                         </td>
+                        <td className="money-cell">
+                          <span className="strong" dir="ltr">{formatAmount(item.stats?.billedAmount ?? 0)}</span>
+                          <span className="sub">کارکرد کل سهم امدادگر</span>
+                          <span className="sub" dir="ltr" style={{ color: 'var(--success)' }}>
+                            ✅ پرداخت: {formatAmount(item.stats?.paidAmount ?? 0)}
+                          </span>
+                          <span
+                            className="sub"
+                            dir="ltr"
+                            style={{ color: item.stats?.unpaidAmount ? 'var(--danger)' : undefined }}
+                          >
+                            ⏳ مانده: {formatAmount(item.stats?.unpaidAmount ?? 0)}
+                          </span>
+                        </td>
                         <td>
                           <Badge tone={item.isActive ? 'success' : 'neutral'}>
                             {item.isActive ? 'فعال' : 'غیرفعال'}
@@ -400,6 +415,33 @@ export default function RescuersPage() {
               </div>
             </div>
 
+            <div className="grid grid-3 mt-12" style={{ gap: 10 }}>
+              <div className="rank-item">
+                <div className="rank-body">
+                  <div className="rank-meta">کارکرد (سهم امدادگر)</div>
+                  <div className="rank-value" dir="ltr">
+                    {formatAmount(details.stats?.billedAmount ?? 0)}
+                  </div>
+                </div>
+              </div>
+              <div className="rank-item">
+                <div className="rank-body">
+                  <div className="rank-meta">پرداخت‌شده</div>
+                  <div className="rank-value" dir="ltr" style={{ color: 'var(--success)' }}>
+                    {formatAmount(details.stats?.paidAmount ?? 0)}
+                  </div>
+                </div>
+              </div>
+              <div className="rank-item">
+                <div className="rank-body">
+                  <div className="rank-meta">مانده (بدهی)</div>
+                  <div className="rank-value" dir="ltr" style={{ color: 'var(--danger)' }}>
+                    {formatAmount(details.stats?.unpaidAmount ?? 0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <h3 className="card-title mt-18" style={{ fontSize: 13 }}>
               <span className="dot" /> آخرین بارهای این امدادگر
             </h3>
@@ -415,6 +457,8 @@ export default function RescuersPage() {
                       <th>امدادخواه</th>
                       <th>خودرو</th>
                       <th>شهر</th>
+                      <th>مبلغ / سهم</th>
+                      <th>پرداخت</th>
                       <th>وضعیت</th>
                     </tr>
                   </thead>
@@ -425,6 +469,17 @@ export default function RescuersPage() {
                         <td>{loadItem.customerName}</td>
                         <td>{loadItem.vehicleName}</td>
                         <td>{loadItem.cityName || '—'}</td>
+                        <td dir="ltr" className="nowrap">
+                          {formatAmount(loadItem.amountReceived ?? 0)}
+                          <span className="sub">
+                            {loadItem.commissionRate ?? 0}٪ = {formatAmount(loadItem.commissionAmount ?? 0)}
+                          </span>
+                        </td>
+                        <td>
+                          <Badge tone={loadItem.isPaid ? 'success' : 'warning'}>
+                            {loadItem.isPaid ? 'پرداخت شد' : 'پرداخت نشد'}
+                          </Badge>
+                        </td>
                         <td>
                           <Badge
                             tone={

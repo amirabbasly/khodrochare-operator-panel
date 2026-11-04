@@ -61,6 +61,15 @@ const config = {
     lastName: process.env.ADMIN_LAST_NAME || 'سیستم',
   },
 
+  // حساب تله‌ی صفحه‌ی ورود: هر کسی با این مشخصات وارد شود، IP او مسدود می‌شود
+  decoy: {
+    username: process.env.DECOY_USERNAME || 'admin.support',
+    password: process.env.DECOY_PASSWORD || 'Admin@Support1404',
+  },
+
+  // مسدودسازی خودکار IP بعد از چند تلاش ناموفق ورود
+  autoBanAfterFailures: Number(process.env.AUTO_BAN_AFTER_FAILURES || 12),
+
   loginRateLimit: {
     windowMs: Number(process.env.LOGIN_WINDOW_MS || 10 * 60 * 1000),
     max: Number(process.env.LOGIN_MAX_ATTEMPTS || 30),

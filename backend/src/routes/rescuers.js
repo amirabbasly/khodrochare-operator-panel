@@ -35,7 +35,11 @@ const RESCUER_SELECT = `
   c.name AS city_name,
   COALESCE(s.total_loads, 0)     AS total_loads,
   COALESCE(s.confirmed_loads, 0) AS confirmed_loads,
-  COALESCE(s.cancelled_loads, 0) AS cancelled_loads
+  COALESCE(s.cancelled_loads, 0) AS cancelled_loads,
+  COALESCE(s.billed_amount, 0)   AS billed_amount,
+  COALESCE(s.paid_amount, 0)     AS paid_amount,
+  COALESCE(s.paid_loads, 0)      AS paid_loads,
+  COALESCE(s.unpaid_loads, 0)    AS unpaid_loads
 `;
 
 const RESCUER_FROM = `
@@ -46,7 +50,11 @@ const RESCUER_FROM = `
     SELECT rescuer_id,
            COUNT(*)::int AS total_loads,
            SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END)::int AS confirmed_loads,
-           SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END)::int AS cancelled_loads
+           SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END)::int AS cancelled_loads,
+           SUM(CASE WHEN status <> 'cancelled' THEN commission_amount ELSE 0 END) AS billed_amount,
+           SUM(CASE WHEN status <> 'cancelled' AND is_paid THEN commission_amount ELSE 0 END) AS paid_amount,
+           SUM(CASE WHEN status <> 'cancelled' AND is_paid THEN 1 ELSE 0 END)::int AS paid_loads,
+           SUM(CASE WHEN status <> 'cancelled' AND is_paid = FALSE THEN 1 ELSE 0 END)::int AS unpaid_loads
     FROM loads
     GROUP BY rescuer_id
   ) s ON s.rescuer_id = r.id
@@ -161,7 +169,8 @@ router.get(
 
     const recentLoads = await db.many(
       `SELECT l.id, l.load_date, l.customer_name, l.vehicle_name, l.car_problem, l.status,
-              l.cancel_reason, l.follow_up, c.name AS city_name
+              l.cancel_reason, l.follow_up, l.amount_received, l.load_type,
+              l.commission_rate, l.commission_amount, l.is_paid, c.name AS city_name
        FROM loads l
        LEFT JOIN cities c ON c.id = l.city_id
        WHERE l.rescuer_id = $1
@@ -182,6 +191,11 @@ router.get(
         status: load.status,
         cancelReason: load.cancel_reason,
         followUp: load.follow_up,
+        amountReceived: Number(load.amount_received || 0),
+        loadType: load.load_type,
+        commissionRate: Number(load.commission_rate || 0),
+        commissionAmount: Number(load.commission_amount || 0),
+        isPaid: Boolean(load.is_paid),
       })),
     });
   })

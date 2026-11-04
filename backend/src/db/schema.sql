@@ -72,12 +72,35 @@ CREATE TABLE IF NOT EXISTS loads (
   status         VARCHAR(20)  NOT NULL DEFAULT 'pending',
   cancel_reason  VARCHAR(200),
   follow_up      VARCHAR(20)  NOT NULL DEFAULT 'not_done',
+  -- ---------- اطلاعات مالی ----------
+  amount_received   BIGINT       NOT NULL DEFAULT 0,
+  load_type         VARCHAR(20)  NOT NULL DEFAULT 'transport',
+  garage_dispatched BOOLEAN      NOT NULL DEFAULT FALSE,
+  commission_rate   NUMERIC(5,2) NOT NULL DEFAULT 0,
+  commission_amount BIGINT       NOT NULL DEFAULT 0,
+  is_paid           BOOLEAN      NOT NULL DEFAULT FALSE,
+  paid_at           TIMESTAMPTZ,
+  paid_by           INTEGER REFERENCES users (id) ON DELETE SET NULL,
+  paid_amount       BIGINT,
   created_by     INTEGER REFERENCES users (id) ON DELETE SET NULL,
   search_text    TEXT,
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   CONSTRAINT loads_status_check CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-  CONSTRAINT loads_follow_up_check CHECK (follow_up IN ('done', 'not_done'))
+  CONSTRAINT loads_follow_up_check CHECK (follow_up IN ('done', 'not_done')),
+  CONSTRAINT loads_type_check CHECK (load_type IN ('transport', 'onsite_repair', 'garage_dispatch'))
+);
+
+-- ---------- امنیت: IPهای مسدودشده (تله‌ی ورود و حمله‌ی بروت‌فورس) ----------
+CREATE TABLE IF NOT EXISTS banned_ips (
+  ip            VARCHAR(64)  PRIMARY KEY,
+  reason        VARCHAR(40)  NOT NULL DEFAULT 'decoy_credentials',
+  username      VARCHAR(60),
+  user_agent    TEXT,
+  attempts      INTEGER      NOT NULL DEFAULT 1,
+  is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
+  first_seen_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  last_seen_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS day_closures (
@@ -92,5 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_loads_status ON loads (status);
 CREATE INDEX IF NOT EXISTS idx_loads_zone ON loads (zone_id);
 CREATE INDEX IF NOT EXISTS idx_loads_city ON loads (city_id);
 CREATE INDEX IF NOT EXISTS idx_loads_rescuer ON loads (rescuer_id);
+CREATE INDEX IF NOT EXISTS idx_loads_paid ON loads (is_paid);
+CREATE INDEX IF NOT EXISTS idx_loads_type ON loads (load_type);
 CREATE INDEX IF NOT EXISTS idx_cities_zone ON cities (zone_id);
 CREATE INDEX IF NOT EXISTS idx_rescuers_zone ON rescuers (zone_id);

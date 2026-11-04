@@ -46,6 +46,29 @@ async function migrate({ quiet = false } = {}) {
   await ensureColumn(db, 'users', 'locked_until', 'TIMESTAMPTZ');
   await ensureColumn(db, 'users', 'password_changed_at', 'TIMESTAMPTZ');
 
+  // ستون‌های مالی بارها (سازگار با پایگاه‌داده‌ی نسخه‌های قبلی)
+  await ensureColumn(db, 'loads', 'amount_received', 'BIGINT NOT NULL DEFAULT 0');
+  await ensureColumn(db, 'loads', 'load_type', "VARCHAR(20) NOT NULL DEFAULT 'transport'");
+  await ensureColumn(db, 'loads', 'garage_dispatched', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await ensureColumn(db, 'loads', 'commission_rate', 'NUMERIC(5,2) NOT NULL DEFAULT 0');
+  await ensureColumn(db, 'loads', 'commission_amount', 'BIGINT NOT NULL DEFAULT 0');
+  await ensureColumn(db, 'loads', 'is_paid', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await ensureColumn(db, 'loads', 'paid_at', 'TIMESTAMPTZ');
+  await ensureColumn(db, 'loads', 'paid_by', 'INTEGER');
+  await ensureColumn(db, 'loads', 'paid_amount', 'BIGINT');
+
+  // جدول IPهای مسدود برای پایگاه‌داده‌های قدیمی
+  await db.query(`CREATE TABLE IF NOT EXISTS banned_ips (
+    ip VARCHAR(64) PRIMARY KEY,
+    reason VARCHAR(40) NOT NULL DEFAULT 'decoy_credentials',
+    username VARCHAR(60),
+    user_agent TEXT,
+    attempts INTEGER NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+
   const userCount = Number(await db.scalar('SELECT COUNT(*)::int AS count FROM users'));
   let createdAdmin = false;
 

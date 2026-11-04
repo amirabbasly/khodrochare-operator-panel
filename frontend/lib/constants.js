@@ -15,6 +15,11 @@ export const STATUSES = [
 
 export const STATUS_MAP = Object.fromEntries(STATUSES.map((item) => [item.value, item]));
 
+export const PAYMENT_STATES = [
+  { value: 'true', label: 'پرداخت‌شده' },
+  { value: 'false', label: 'پرداخت‌نشده' },
+];
+
 export const FOLLOW_UPS = [
   { value: 'done', label: 'پیگیری انجام شد', tone: 'success' },
   { value: 'not_done', label: 'پیگیری انجام نشد', tone: 'warning' },
@@ -68,6 +73,13 @@ export const NAV_ITEMS = [
     icon: '🪪',
     description: 'مشاهده‌ی اطلاعات حساب',
     roles: ['admin', 'operator'],
+  },
+  {
+    href: '/security',
+    label: 'امنیت و IPهای مسدود',
+    icon: '🛡️',
+    description: 'تلاش‌های نفوذ و مسدودی‌ها',
+    roles: ['admin'],
   },
   {
     href: '/reports',

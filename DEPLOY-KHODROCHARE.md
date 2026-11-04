@@ -478,3 +478,108 @@ LOGIN_ACCOUNT_LOCK_MINUTES=15
 LOGIN_IP_MAX_FAILURES=20
 LOGIN_PAIR_MAX_FAILURES=10
 ```
+
+---
+
+## نسخه‌ی ۳ — مبالغ، سهم امدادگر، پرداخت‌ها و تله‌ی امنیتی
+
+### ۱) آپدیت سرور
+
+```bash
+cd /var/www/khodrochare-panel
+git pull
+docker compose --env-file .env.docker up -d --build
+```
+
+ستون‌های مالی بارها (`amount_received`, `load_type`, `commission_rate`, `commission_amount`,
+`is_paid`, `paid_at`, `paid_by`, `paid_amount`, `garage_dispatched`) و جدول `banned_ips`
+در همان بالا آمدن، خودکار به پایگاه‌داده اضافه می‌شوند؛ داده‌های قبلی حفظ می‌شود و
+بارهای قدیمی با مبلغ صفر و نوع «حملی» نمایش داده می‌شوند.
+
+### ۲) محاسبه‌ی خودکار سهم امدادگر
+
+| نوع بار | درصد سهم امدادگر |
+| --- | --- |
+| حملی | ۲۰٪ |
+| تعمیر در محل | ۳۰٪ |
+| امکان اعزام به تعمیرگاه | ۳۰٪ (قابل تغییر) |
+
+درصدها با متغیرهای محیطی قابل تغییرند (بدون تغییر کد):
+
+```env
+COMMISSION_TRANSPORT=20
+COMMISSION_ONSITE=30
+COMMISSION_GARAGE=30
+```
+
+سهم امدادگر همیشه در سرور محاسبه و ذخیره می‌شود (نه در مرورگر)، پس دستکاری سمت کلاینت اثر ندارد.
+
+### ۳) پرداخت‌ها
+
+- هر بار یک دکمه‌ی «پرداخت شد / پرداخت نشد» دارد (در فهرست بارها، صفحات پیگیری و فرم بار).
+- ثبت‌کننده و زمان پرداخت ذخیره می‌شود و در جدول دیده می‌شود.
+- کارکرد، پرداخت‌شده و مانده‌ی هر امدادگر در صفحه‌ی **امدادگران** و در تب **💰 مالی** گزارش‌ها آمده است.
+
+### ۴) تله‌ی امنیتی (حساب ادمین فیک)
+
+روی صفحه‌ی ورود یک نام کاربری/رمز نمایشی نشان داده می‌شود که **حساب واقعی نیست**.
+هر کسی با آن تلاش کند، IP او مسدود می‌شود و در صفحه‌ی **🛡️ امنیت و IPهای مسدود** ثبت می‌شود.
+
+```env
+DECOY_USERNAME=admin.support
+DECOY_PASSWORD=Admin@Support1404
+AUTO_BAN_AFTER_FAILURES=12
+```
+
+- تغییر این مقادیر در `.env.docker` + `docker compose ... up -d` کافی است (مقدار نمایش‌داده‌شده از خود API خوانده می‌شود، پس هرگز با تله ناهماهنگ نمی‌شود).
+- مسدودسازی خودکار: بعد از ۱۲ تلاش ناموفق ورود از یک IP.
+- رفع مسدودی: صفحه‌ی **امنیت** → 🔓 (یا `DELETE /api/security/bans/<IP>`).
+
+> ⚠️ اگر IP خودتان مسدود شد و به پنل دسترسی ندارید، از سرور:
+
+```bash
+docker compose --env-file .env.docker exec -T db \
+  psql -U khodro_panel -d khodrochare_panel -c "UPDATE banned_ips SET is_active = FALSE;"
+```
+
+### ۵) پیدا کردن نام کاربری و بازنشانی رمز مدیر
+
+`ADMIN_USERNAME` / `ADMIN_PASSWORD` در `.env` **فقط بار اول** (وقتی جدول کاربران خالی است)
+استفاده می‌شود؛ بعد از آن تغییرش اثری ندارد. برای دیدن حساب‌ها:
+
+```bash
+docker compose --env-file .env.docker exec -T db \
+  psql -U khodro_panel -d khodrochare_panel \
+  -c "SELECT id, username, role, is_active, last_login_at FROM users ORDER BY id;"
+```
+
+بازنشانی رمز مدیر (بدون نیاز به ورود به پنل):
+
+```bash
+docker compose --env-file .env.docker exec -T api node -e "
+const bcrypt = require('bcryptjs');
+const { getDb, closeDb } = require('./src/db');
+(async () => {
+  const db = await getDb();
+  const hash = bcrypt.hashSync('AdminPanel@1404', 12);
+  await db.query('UPDATE users SET password_hash = \$1, token_version = token_version + 1, failed_attempts = 0, locked_until = NULL WHERE username = \$2', [hash, 'admin']);
+  await closeDb();
+  console.log('✅ رمز مدیر بازنشانی شد');
+})();"
+```
+
+ساخت یک مدیر جدید در صورت نیاز:
+
+```bash
+docker compose --env-file .env.docker exec -T api node -e "
+const bcrypt = require('bcryptjs');
+const { getDb, closeDb } = require('./src/db');
+(async () => {
+  const db = await getDb();
+  await db.query(\"INSERT INTO users (first_name, last_name, username, password_hash, role, is_active) VALUES ('مدیر','جدید','admin2',\$1,'admin',TRUE)\", [bcrypt.hashSync('SecondAdmin@1404', 12)]);
+  await closeDb();
+  console.log('✅ مدیر جدید ساخته شد: admin2');
+})();"
+```
+
+**الزامات رمز:** حداقل ۱۰ کاراکتر، حداقل یک حرف انگلیسی و یک عدد، و بدون نام کاربری/نام خود.

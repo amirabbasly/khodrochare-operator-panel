@@ -87,6 +87,10 @@ function registerFailure(req, username) {
   bump(`pair:${clientIp(req)}:${String(username || '').toLowerCase()}`, IP_WINDOW_MS);
 }
 
+function ipFailureCount(req) {
+  return current(`ip:${clientIp(req)}`);
+}
+
 function registerSuccess(req, username) {
   failures.delete(`pair:${clientIp(req)}:${String(username || '').toLowerCase()}`);
 }
@@ -117,6 +121,7 @@ module.exports = {
   assertIpAllowed,
   assertPairAllowed,
   registerFailure,
+  ipFailureCount,
   registerSuccess,
   accountLockedMinutes,
   nextAttemptState,

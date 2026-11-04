@@ -67,6 +67,12 @@ const followUpEnum = z.enum(['done', 'not_done'], {
   errorMap: () => ({ message: 'وضعیت پیگیری باید done یا not_done باشد.' }),
 });
 
+const loadTypeEnum = z.enum(['transport', 'onsite_repair', 'garage_dispatch'], {
+  errorMap: () => ({
+    message: 'نوع بار باید یکی از حملی / تعمیر در محل / امکان اعزام به تعمیرگاه باشد.',
+  }),
+});
+
 const workTypeEnum = z.enum(['transport', 'onsite_repair', 'both', 'garage'], {
   errorMap: () => ({ message: 'نوع کار امدادگر معتبر نیست.' }),
 });
@@ -106,5 +112,6 @@ module.exports = {
   password,
   statusEnum,
   followUpEnum,
+  loadTypeEnum,
   workTypeEnum,
 };

@@ -2276,3 +2276,127 @@ a.stat-link:focus-visible {
   border-radius: 12px;
   padding: 10px 12px;
 }
+
+/* ============================================================
+   نسخه‌ی ۳: مبالغ، سهم امدادگر، پرداخت و تله‌ی امنیتی
+   ============================================================ */
+
+/* ورودی مبلغ با کاما */
+.amount-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.amount-input input {
+  flex: 1;
+  text-align: left;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-unit {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+/* پنل مالی در فرم بار */
+.money-panel {
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.04);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.money-panel-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.money-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.commission-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px dashed rgba(16, 185, 129, 0.4);
+}
+
+.commission-value {
+  font-weight: 800;
+  font-size: 15px;
+  direction: ltr;
+  text-align: right;
+  color: var(--success, #059669);
+}
+
+.money-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.money-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* جعبه‌ی «حساب تله» روی صفحه‌ی ورود */
+.trap-box {
+  margin-top: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.07);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trap-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.trap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+}
+
+.trap-row code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: rgba(148, 163, 184, 0.18);
+  padding: 2px 8px;
+  border-radius: 6px;
+  direction: ltr;
+}
+
+.trap-hint {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .money-grid {
+    grid-template-columns: 1fr;
+  }
+}

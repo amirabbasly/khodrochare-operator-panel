@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { api } from '@/lib/api';
 import { addDaysISO, faDateWithWeekday, faNumber, faPercent, todayISO } from '@/lib/format';
 import { WORK_TYPE_MAP } from '@/lib/constants';
+import { formatAmount } from '@/lib/money';
 import {
   BarList,
   Card,
@@ -181,6 +182,33 @@ export default function DashboardPage() {
                 icon="📅"
                 tone="teal"
                 foot={`تایید ${faNumber(today.confirmed)} · کنسل ${faNumber(today.cancelled)}`}
+              />
+            </StatLink>
+            <StatLink href="/loads?paid=false">
+              <StatCard
+                label="مانده پرداخت امدادگران"
+                value={formatAmount(data.finance?.unpaid ?? 0)}
+                icon="⏳"
+                tone="danger"
+                foot={`${faNumber(data.finance?.unpaidLoads ?? 0)} بار تسویه‌نشده — مشاهده‌ی فهرست`}
+              />
+            </StatLink>
+            <StatLink href="/loads?paid=true">
+              <StatCard
+                label="سهم پرداخت‌شده‌ی امدادگران"
+                value={formatAmount(data.finance?.paid ?? 0)}
+                icon="✅"
+                tone="success"
+                foot={`${faNumber(data.finance?.paidLoads ?? 0)} بار تسویه‌شده`}
+              />
+            </StatLink>
+            <StatLink href="/reports">
+              <StatCard
+                label="مبلغ کل دریافتی"
+                value={formatAmount(data.finance?.received ?? 0)}
+                icon="💵"
+                tone="teal"
+                foot={`سهم امدادگران: ${formatAmount(data.finance?.commission ?? 0)} تومان`}
               />
             </StatLink>
             <StatLink href="/rescuers">

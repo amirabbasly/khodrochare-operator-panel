@@ -66,6 +66,31 @@ const PROBLEMS = [
   'قفل شدن فرمان', 'ترکیدن لاستیک',
 ];
 
+const AMOUNTS = [350000, 500000, 650000, 800000, 1000000, 1200000, 1500000, 1800000, 2000000, 2500000];
+
+const LOAD_TYPE_POOL = [
+  { value: 'transport', weight: 45 },
+  { value: 'onsite_repair', weight: 35 },
+  { value: 'garage_dispatch', weight: 20 },
+];
+
+/** اطلاعات مالی نمونه: مبلغ، نوع بار، درصد و سهم امدادگر، وضعیت پرداخت */
+function buildMoney(random) {
+  const amount = pick(random, AMOUNTS);
+  const loadType = pickWeighted(random, LOAD_TYPE_POOL);
+  const rate = loadType === 'transport' ? 20 : 30;
+  const commission = Math.round((amount * rate) / 100);
+  const isPaid = random() > 0.45;
+  return {
+    amount,
+    loadType,
+    rate,
+    commission,
+    isPaid,
+    garageDispatched: loadType === 'garage_dispatch' ? random() > 0.5 : false,
+  };
+}
+
 const CANCEL_REASONS = [
   'لغو توسط امدادخواه',
   'عدم حضور امدادگر در زمان مقرر',
@@ -278,6 +303,7 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
       const description = random() > 0.6 ? 'امدادخواه درخواست فوریت داشت.' : null;
       const phone = `09${Math.floor(random() * 9) + 1}${String(Math.floor(random() * 10000000)).padStart(7, '0')}`;
       const rescuerFullName = rescuer ? `${rescuer.first_name} ${rescuer.last_name}` : null;
+      const money = buildMoney(random);
 
       rows.push([
         date,
@@ -306,6 +332,15 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
           city,
           zone.zoneName
         ),
+        money.amount,
+        money.loadType,
+        money.garageDispatched,
+        money.rate,
+        money.commission,
+        money.isPaid,
+        money.isPaid ? `${date} 12:00:00` : null,
+        money.isPaid ? adminId : null,
+        money.isPaid ? money.commission : null,
       ]);
     }
   }
@@ -321,6 +356,7 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
     const address = `${pick(random, ADDRESSES)} — ${city}`;
     const phone = `0912${String(Math.floor(random() * 10000000)).padStart(7, '0')}`;
     const rescuerFullName = `${rescuer.first_name} ${rescuer.last_name}`;
+    const money = buildMoney(random);
 
     rows.push([
       today,
@@ -339,6 +375,15 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
       i === 0 ? 'not_done' : 'done',
       pick(random, operatorIds),
       buildSearchText(customer, rescuerFullName, vehicle, problem, address, phone, city, zone.zoneName),
+      money.amount,
+      money.loadType,
+      money.garageDispatched,
+      money.rate,
+      money.commission,
+      money.isPaid,
+      money.isPaid ? `${today} 12:00:00` : null,
+      money.isPaid ? adminId : null,
+      money.isPaid ? money.commission : null,
     ]);
   }
 
@@ -348,7 +393,7 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
     const values = [];
     const params = [];
     chunk.forEach((row, rowIndex) => {
-      const base = rowIndex * 16;
+      const base = rowIndex * 25;
       const holders = row.map((_, colIndex) => `$${base + colIndex + 1}`);
       values.push(`(${holders.join(', ')})`);
       params.push(...row);
@@ -357,7 +402,9 @@ async function seedDemo(db, { loadsCount = 240, days = 24, quiet = false, random
     await db.query(
       `INSERT INTO loads
         (load_date, vehicle_name, customer_phone, car_problem, customer_name, rescuer_id, rescuer_name,
-         address, description, zone_id, city_id, status, cancel_reason, follow_up, created_by, search_text)
+         address, description, zone_id, city_id, status, cancel_reason, follow_up, created_by, search_text,
+         amount_received, load_type, garage_dispatched, commission_rate, commission_amount,
+         is_paid, paid_at, paid_by, paid_amount)
        VALUES ${values.join(', ')}`,
       params
     );

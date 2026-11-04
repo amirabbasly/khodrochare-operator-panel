@@ -36,6 +36,12 @@ const FOLLOW_UP_LABELS = {
   not_done: 'پیگیری انجام نشد',
 };
 
+const LOAD_TYPE_LABELS = {
+  transport: 'حملی',
+  onsite_repair: 'تعمیر در محل',
+  garage_dispatch: 'امکان اعزام به تعمیرگاه',
+};
+
 function publicRescuer(row) {
   if (!row) return null;
   return {
@@ -59,6 +65,15 @@ function publicRescuer(row) {
       total: Number(row.total_loads || 0),
       confirmed: Number(row.confirmed_loads || 0),
       cancelled: Number(row.cancelled_loads || 0),
+      // ---------- مالی ----------
+      billedAmount: Number(row.billed_amount || 0),
+      paidAmount: Number(row.paid_amount || 0),
+      unpaidAmount: Math.max(
+        0,
+        Number(row.billed_amount || 0) - Number(row.paid_amount || 0)
+      ),
+      paidLoads: Number(row.paid_loads || 0),
+      unpaidLoads: Number(row.unpaid_loads || 0),
     },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -87,6 +102,18 @@ function publicLoad(row) {
     cancelReason: row.cancel_reason,
     followUp: row.follow_up,
     followUpLabel: FOLLOW_UP_LABELS[row.follow_up] || row.follow_up,
+    // ---------- مالی ----------
+    amountReceived: Number(row.amount_received || 0),
+    loadType: row.load_type || 'transport',
+    loadTypeLabel: LOAD_TYPE_LABELS[row.load_type] || row.load_type || '',
+    garageDispatched: Boolean(row.garage_dispatched),
+    commissionRate: Number(row.commission_rate || 0),
+    commissionAmount: Number(row.commission_amount || 0),
+    isPaid: Boolean(row.is_paid),
+    paidAt: row.paid_at || null,
+    paidAmount: row.paid_amount === null || row.paid_amount === undefined ? null : Number(row.paid_amount),
+    paidBy: row.paid_by || null,
+    paidByUsername: row.paid_by_username || null,
     createdBy: row.created_by,
     createdByUsername: row.created_by_username || null,
     dayClosed: Boolean(row.day_closed),
@@ -102,4 +129,5 @@ module.exports = {
   WORK_TYPE_LABELS,
   STATUS_LABELS,
   FOLLOW_UP_LABELS,
+  LOAD_TYPE_LABELS,
 };

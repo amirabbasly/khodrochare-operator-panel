@@ -10,6 +10,7 @@ const { publicUser } = require('../utils/serialize');
 const { authRequired, signToken, requireRole } = require('../middleware/auth');
 const { hashPassword, verifyPassword, burnCompare, passwordProblems } = require('../services/passwords');
 const guard = require('../services/loginGuard');
+const security = require('../services/security');
 
 const router = express.Router();
 
@@ -32,6 +33,21 @@ const loginSchema = z.object({
   role: z.enum(['admin', 'operator']).optional(),
 });
 
+/** بعد از تلاش‌های ناموفق مکرر، IP به‌صورت خودکار مسدود می‌شود */
+async function maybeAutoBan(db, req, username) {
+  if (config.isTest) return;
+  const limit = Number(config.autoBanAfterFailures || 0);
+  if (limit <= 0) return;
+  if (guard.ipFailureCount(req) < limit) return;
+
+  await security.banIp(db, {
+    ip: guard.clientIp(req),
+    reason: 'brute_force',
+    username,
+    userAgent: req.headers['user-agent'] || null,
+  });
+}
+
 router.post(
   '/login',
   asyncHandler(async (req, res) => {
@@ -41,6 +57,18 @@ router.post(
     guard.assertPairAllowed(req, data.username);
 
     const db = await getDb();
+
+    // 🪤 تله‌ی ورود: مشخصات «ادمین فیک» که روی صفحه‌ی ورود نمایش داده می‌شود
+    if (security.isDecoyAttempt(data)) {
+      await security.banIp(db, {
+        ip: guard.clientIp(req),
+        reason: 'decoy_credentials',
+        username: data.username,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      throw new ApiError(401, GENERIC_LOGIN_ERROR, 'INVALID_CREDENTIALS');
+    }
+
     const user = await db.one('SELECT * FROM users WHERE username = $1', [data.username]);
 
     if (!user) {
@@ -59,6 +87,7 @@ router.post(
         user.id,
       ]);
       guard.registerFailure(req, data.username);
+      await maybeAutoBan(db, req, data.username);
       throw new ApiError(401, GENERIC_LOGIN_ERROR, 'INVALID_CREDENTIALS');
     }
 
@@ -98,6 +127,18 @@ router.post(
     });
   })
 );
+
+/**
+ * مشخصات «حساب تله» که روی صفحه‌ی ورود نمایش داده می‌شود.
+ * این حساب واقعی نیست؛ هر ورودی با آن، IP متقاضی را مسدود می‌کند.
+ */
+router.get('/support-access', (_req, res) => {
+  res.json({
+    username: config.decoy.username,
+    password: config.decoy.password,
+    note: 'این حساب نمایشی است و ورود با آن، دسترسی شبکه را مسدود می‌کند.',
+  });
+});
 
 router.get(
   '/me',
