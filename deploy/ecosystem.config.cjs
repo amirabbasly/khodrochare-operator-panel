@@ -14,7 +14,14 @@ const path = require('node:path');
 
 const ROOT = __dirname ? path.resolve(__dirname, '..') : '/var/www/khodrochare-panel';
 
-const API_PORT = process.env.PANEL_API_PORT || 4100;
+// خواندن .env پروژه تا پورت‌ها مستقل از شل جاری درست باشند
+try {
+  require('dotenv').config({ path: path.join(ROOT, '.env') });
+} catch {
+  /* dotenv اجباری نیست */
+}
+
+const API_PORT = process.env.PANEL_API_PORT || process.env.PORT || 4100;
 const WEB_PORT = process.env.PANEL_WEB_PORT || 3100;
 
 module.exports = {
