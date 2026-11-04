@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+frontend/.next
+frontend/out
+.git
+.gitignore
+coverage
+*.log
+.env
+.env.local
+README.md
+DEPLOY.md
