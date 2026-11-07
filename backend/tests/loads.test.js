@@ -259,6 +259,40 @@ test('ثبت بار با شهر و محدوده‌ی تایپ‌شده توسط 
   assert.equal(response.body.item.zoneName, 'محدوده‌ی تایپی تست');
 });
 
+test('محدوده‌ی تایپ‌شده برای یک شهر تکراری در ثبت و ویرایش حفظ می‌شود', async () => {
+  const first = await request(app)
+    .post('/api/loads')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({
+      ...validPayload(),
+      cityId: null,
+      cityName: 'تهران',
+      zoneName: 'محدوده‌ی اول تهران تست',
+    });
+  assert.equal(first.status, 201);
+  assert.equal(first.body.item.zoneName, 'محدوده‌ی اول تهران تست');
+
+  const second = await request(app)
+    .post('/api/loads')
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({
+      ...validPayload(),
+      cityId: null,
+      cityName: 'تهران',
+      zoneName: 'محدوده‌ی دوم تهران تست',
+    });
+  assert.equal(second.status, 201);
+  assert.equal(second.body.item.zoneName, 'محدوده‌ی دوم تهران تست');
+
+  const updated = await request(app)
+    .patch(`/api/loads/${first.body.item.id}`)
+    .set('Authorization', `Bearer ${operatorToken}`)
+    .send({ cityName: 'تهران', zoneName: 'محدوده‌ی ویرایش‌شده تهران تست' });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.item.cityName, 'تهران');
+  assert.equal(updated.body.item.zoneName, 'محدوده‌ی ویرایش‌شده تهران تست');
+});
+
 test('فیلتر پیگیری انجام‌شده/نشده و شمارش هر دو حالت', async () => {
   const done = await request(app)
     .post('/api/loads')

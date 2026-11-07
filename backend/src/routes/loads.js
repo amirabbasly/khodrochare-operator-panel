@@ -422,9 +422,9 @@ router.patch(
     if (['cityId', 'zoneId', 'cityName', 'zoneName'].some((field) => field in req.body)) {
       const relations = await resolveLoadRelations(db, {
         cityId: data.cityId ?? null,
-        zoneId: data.cityId ? null : data.zoneId ?? null,
+        zoneId: data.zoneId ?? null,
         cityName: data.cityName ?? null,
-        zoneName: data.cityName ? null : data.zoneName ?? null,
+        zoneName: data.zoneName ?? null,
       });
       location = {
         city_id: data.cityName || 'cityId' in req.body ? relations.cityId : current.city_id || null,
