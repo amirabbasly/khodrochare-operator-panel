@@ -63,6 +63,13 @@ async function resolveLocation(db, { zoneId = null, cityId = null, zoneName = nu
   let resolvedZoneId = zoneId ?? null;
   let resolvedCityId = cityId ?? null;
 
+  // محدوده‌ای که اپراتور صریحاً وارد می‌کند برای همین بار معتبر است؛
+  // zone_id پیش‌فرض شهر نباید آن را بازنویسی کند.
+  if (zoneName) {
+    const zone = await findOrCreateZone(db, zoneName);
+    if (zone) resolvedZoneId = zone;
+  }
+
   if (resolvedCityId) {
     const city = await db.one('SELECT id, zone_id FROM cities WHERE id = $1', [resolvedCityId]);
     if (!city) {
@@ -73,16 +80,13 @@ async function resolveLocation(db, { zoneId = null, cityId = null, zoneName = nu
     return { cityId: resolvedCityId, zoneId: resolvedZoneId ?? city.zone_id };
   }
 
-  if (zoneName) {
-    const zone = await findOrCreateZone(db, zoneName);
-    if (zone) resolvedZoneId = zone;
-  }
-
   if (cityName) {
     const city = await findOrCreateCity(db, { name: cityName, zoneId: resolvedZoneId });
     if (city) {
       resolvedCityId = city.cityId;
-      resolvedZoneId = city.zoneId ?? resolvedZoneId;
+      // شهرهای موجود ممکن است محدوده‌ی پیش‌فرض قدیمی داشته باشند؛ فقط
+      // در نبود محدوده‌ی صریح از آن مقدار به‌عنوان پیش‌فرض استفاده می‌کنیم.
+      resolvedZoneId = resolvedZoneId ?? city.zoneId;
     }
   }
 
