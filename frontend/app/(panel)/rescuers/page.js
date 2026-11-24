@@ -546,15 +546,10 @@ function PanelRescuers() {
 
 
 export default function RescuersPage() {
-  const [source, setSource] = useState('app');
   return <>
-    <div className="filter-tabs" role="tablist" aria-label="فهرست امدادگران" style={{display:'flex',gap:10,flexWrap:'wrap',marginBottom:20}}>
-      {[['app','امدادگران اپلیکیشن'],['panel','امدادگران ثبت‌شده در پنل']].map(([value,label]) =>
-        <button key={value} type="button" role="tab" id={`rescuers-tab-${value}`} aria-controls={`rescuers-content-${value}`} aria-selected={source===value} className={`btn ${source===value?'btn-primary':'btn-outline'}`} onClick={()=>setSource(value)}>{label}</button>
-      )}
-    </div>
-    <section role="tabpanel" id={`rescuers-content-${source}`} aria-labelledby={`rescuers-tab-${source}`}>
-      {source==='app'?<SuperAppWorkspace accountsOnly accountRole="DRIVER"/>:<PanelRescuers/>}
+    <PanelRescuers />
+    <section aria-label="حساب‌های امدادگران اپلیکیشن" style={{marginTop:32}}>
+      <SuperAppWorkspace accountsOnly accountRole="DRIVER" />
     </section>
   </>;
 }
