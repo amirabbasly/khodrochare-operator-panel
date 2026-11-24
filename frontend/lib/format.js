@@ -98,7 +98,7 @@ export function todayISO() {
 export function addDaysISO(dateStr, days) {
   const base = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
   base.setDate(base.getDate() + days);
-  return base.toISOString().slice(0, 10);
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
 }
 
 export function initials(fullName = '') {

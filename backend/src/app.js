@@ -66,6 +66,7 @@ function createApp() {
   app.use('/api/stats', require('./routes/stats'));
   app.use('/api/meta', require('./routes/meta'));
   app.use('/api/security', require('./routes/security'));
+  app.use('/api/super-app', require('./routes/superApp'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

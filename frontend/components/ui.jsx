@@ -292,7 +292,7 @@ export function Modal({ open, title, subtitle, onClose, children, footer, size =
   if (!open) return null;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(event) => {
+      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose?.();
     }}>
       <div className={`modal ${size}`}>

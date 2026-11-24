@@ -39,6 +39,8 @@ services:
       AUTO_SEED: ${AUTO_SEED:-false}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       MIGRATE_ON_START: 'true'
+      SUPERAPP_API_URL: ${SUPERAPP_API_URL:-https://api.khodrochare.ir}
+      OPERATOR_BRIDGE_SECRET: ${OPERATOR_BRIDGE_SECRET:-}
     ports:
       - '${API_PORT:-4000}:4000'
     networks:

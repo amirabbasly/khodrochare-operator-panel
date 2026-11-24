@@ -39,6 +39,7 @@ export const CANCEL_REASON_SUGGESTIONS = [
 ];
 
 export const NAV_ITEMS = [
+  { href: '/super-app', label: 'سوپر اپلیکیشن خودرو چاره', icon: '◈', description: 'بارها، حساب‌ها و بررسی آگهی‌های اپلیکیشن', roles: ['admin','operator'] },
   {
     href: '/dashboard',
     label: 'داشبورد',
