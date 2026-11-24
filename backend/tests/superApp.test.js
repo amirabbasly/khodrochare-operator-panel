@@ -31,6 +31,10 @@ test('panel bridge authenticates both roles, signs fresh server actor and forbid
   assert.equal((await request(app).post(`/api/super-app/requests/${id}/locations`).set('Authorization',`Bearer ${token}`).send({})).status,200);
   assert.equal(received.at(-1).method,'POST');assert.equal(received.at(-1).url,`/api/v1/operator/requests/${id}/locations`);
   for(const path of [`/users/${id}`,`/users/${id}/impersonate`])assert.equal((await request(app).delete('/api/super-app'+path).set('Authorization',`Bearer ${token}`)).status,405);
+  for(const [method,path] of [['get','/driver-verifications'],['get',`/driver-verifications/${id}`],['get',`/driver-verifications/${id}/documents/${id}`],['post',`/driver-verifications/${id}/review`],['patch',`/driver-verifications/${id}/profile`]]){
+   const operation=request(app)[method]('/api/super-app'+path).set('Authorization',`Bearer ${token}`);
+   const result=await (method==='get'?operation:operation.send({version:0}));assert.equal(result.status,200);assert.equal(received.at(-1).url,'/api/v1/operator'+path);
+  }
   const count=received.length;assert.equal((await request(app).get('/api/super-app/unknown').set('Authorization',`Bearer ${token}`)).status,405);assert.equal(received.length,count);
   upstreamStatus=403;assert.equal((await request(app).get('/api/super-app/requests').set('Authorization',`Bearer ${token}`)).status,502);upstreamStatus=200;
  }

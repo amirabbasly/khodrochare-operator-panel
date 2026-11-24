@@ -8,9 +8,9 @@ const router=express.Router();
 router.use(authRequired,requireRole('admin','operator'));
 const uuid='[a-f0-9-]{36}';
 const allowed={
- GET:new RegExp(`^/(requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|listings)$`),
- POST:new RegExp(`^/(requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/review|receipts/${uuid}/review)$`),
- PATCH:new RegExp(`^/users/${uuid}/active$`),
+ GET:new RegExp(`^/(requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|driver-verifications(?:/${uuid}(?:/documents/${uuid})?)?|listings)$`),
+ POST:new RegExp(`^/(requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/review|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
+ PATCH:new RegExp(`^/(users/${uuid}/active|driver-verifications/${uuid}/profile)$`),
 };
 router.use(asyncHandler(async(req,res)=>{
  if(!allowed[req.method]?.test(req.path))throw new ApiError(405,'این عملیات در پنل مجاز نیست.');
@@ -29,7 +29,7 @@ router.use(asyncHandler(async(req,res)=>{
  let response,data;
  try{
   response=await fetch(url,{method:req.method,redirect:'error',headers:{'Content-Type':'application/json','X-Operator-Time':timestamp,'X-Operator-Nonce':nonce,'X-Operator-Actor':actor,'X-Operator-Signature':signature},body,signal:AbortSignal.timeout(20000)});
-  const text=await response.text();if(text.length>(req.path.startsWith('/receipts/')?8000000:2000000))throw new Error('Oversized response');data=JSON.parse(text);
+  const text=await response.text();if(text.length>((req.path.startsWith('/receipts/')||req.path.includes('/documents/'))?8000000:2000000))throw new Error('Oversized response');data=JSON.parse(text);
  }catch{throw new ApiError(502,'ارتباط با سوپر اپلیکیشن برقرار نشد؛ دوباره تلاش کنید.');}
  if(!response.ok){
   if([401,403].includes(response.status))throw new ApiError(502,'تنظیمات اتصال امن پنل به سوپر اپلیکیشن معتبر نیست.');
