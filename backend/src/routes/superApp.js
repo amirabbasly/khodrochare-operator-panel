@@ -9,7 +9,7 @@ router.use(authRequired,requireRole('admin','operator'));
 const uuid='[a-f0-9-]{36}';
 const allowed={
  GET:new RegExp(`^/(requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|driver-verifications(?:/${uuid}(?:/documents/${uuid})?)?|listings)$`),
- POST:new RegExp(`^/(requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/review|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
+ POST:new RegExp(`^/(requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/(review|delete)|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
  PATCH:new RegExp(`^/(users/${uuid}/active|driver-verifications/${uuid}/profile)$`),
 };
 router.use(asyncHandler(async(req,res)=>{
