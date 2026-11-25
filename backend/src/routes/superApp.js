@@ -8,9 +8,9 @@ const router=express.Router();
 router.use(authRequired,requireRole('admin','operator'));
 const uuid='[a-f0-9-]{36}';
 const allowed={
- GET:new RegExp(`^/(imports|requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|driver-verifications(?:/${uuid}(?:/documents/${uuid})?)?|listings)$`),
- POST:new RegExp(`^/(requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/(review|delete)|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
- PATCH:new RegExp(`^/(users/${uuid}/active|driver-verifications/${uuid}/profile)$`),
+ GET:new RegExp(`^/(showrooms(?:/${uuid}/listings)?|imports|requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|driver-verifications(?:/${uuid}(?:/documents/${uuid})?)?|listings)$`),
+ POST:new RegExp(`^/(showrooms/${uuid}/photos(?:/${uuid}/delete)?|requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/(review|delete)|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
+ PATCH:new RegExp(`^/(listings/${uuid}|showrooms/${uuid}(?:/gold)?|showroom-accounts/${uuid}|users/${uuid}/active|driver-verifications/${uuid}/profile)$`),
 };
 router.use(asyncHandler(async(req,res)=>{
  if(!allowed[req.method]?.test(req.path))throw new ApiError(405,'این عملیات در پنل مجاز نیست.');
@@ -37,7 +37,7 @@ router.use(asyncHandler(async(req,res)=>{
  }
  const imageBase=new URL(config.superApp.url);
  const prefix=imageBase.origin+imageBase.pathname.replace(/\/+$/,'')+'/api/v1';
- const decorate=row=>row?.photos?{...row,photos:row.photos.map(photo=>({...photo,url:photo.url.startsWith('/hall/')?prefix+photo.url:photo.url}))}:row;
+ const decorate=row=>row?.photos?{...row,photos:row.photos.map(photo=>({...photo,url:(photo.url.startsWith('/hall/')||photo.url.startsWith('/showrooms/'))?prefix+photo.url:photo.url}))}:row;
  if(Array.isArray(data.items))data={...data,items:data.items.map(decorate)};else data=decorate(data);
  res.set('Cache-Control','no-store').json(data);
 }));
