@@ -9,11 +9,12 @@ router.use(authRequired,requireRole('admin','operator'));
 const uuid='[a-f0-9-]{36}';
 const allowed={
  GET:new RegExp(`^/(showrooms(?:/${uuid}/listings)?|imports|requests(?:/${uuid}(?:/locations)?)?|users(?:/${uuid})?|receipts(?:/${uuid})?|driver-verifications(?:/${uuid}(?:/documents/${uuid})?)?|listings)$`),
- POST:new RegExp(`^/(showrooms/${uuid}/photos(?:/${uuid}/delete)?|requests/${uuid}/(confirm|assign|locations)|users/${uuid}/password|listings/${uuid}/(review|delete)|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
+ POST:new RegExp(`^/(showrooms/${uuid}/photos(?:/${uuid}/delete)?|requests/${uuid}/(confirm|assign|locations)|users/${uuid}/(password|delete)|listings/${uuid}/(review|delete)|receipts/${uuid}/review|driver-verifications/${uuid}/review)$`),
  PATCH:new RegExp(`^/(listings/${uuid}|showrooms/${uuid}(?:/gold)?|showroom-accounts/${uuid}|users/${uuid}/active|driver-verifications/${uuid}/profile)$`),
 };
 router.use(asyncHandler(async(req,res)=>{
  if(!allowed[req.method]?.test(req.path))throw new ApiError(405,'این عملیات در پنل مجاز نیست.');
+ if(req.method==='POST'&&/^\/users\/[a-f0-9-]{36}\/delete$/.test(req.path)&&req.user.role!=='admin')throw new ApiError(403,'Only admin can delete accounts');
  const secret=config.superApp.secret;
  if(!secret||secret.length<32)throw new ApiError(503,'اتصال سوپر اپلیکیشن هنوز تنظیم نشده است.');
  let url;try{url=new URL(config.superApp.url);}catch{throw new ApiError(503,'آدرس سوپر اپلیکیشن معتبر نیست.');}

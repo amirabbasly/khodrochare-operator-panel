@@ -27,6 +27,10 @@ test('panel bridge authenticates both roles, signs fresh server actor and forbid
   const response=await request(app).get('/api/super-app/requests?q=car&page=1').set('Authorization',`Bearer ${token}`).set('X-Operator-Actor','forged-browser-actor');
   assert.equal(response.status,200);assert.equal(received.at(-1).actor.role,role);assert.equal(received.at(-1).url,'/api/v1/operator/requests?q=car&page=1');assert.ok(received.at(-1).actor.id);assert.ok(!JSON.stringify(response.body).includes(config.superApp.secret));
   const id='00000000-0000-4000-8000-000000000001';
+  const beforeDelete=received.length;
+  const deletion=await request(app).post(`/api/super-app/users/${id}/delete`).set('Authorization',`Bearer ${token}`).set('X-Operator-Actor','forged-admin').send({confirmation:'DELETE',phone:'09120000001',reason:'Requested deletion'});
+  assert.equal(deletion.status,role==='admin'?200:403);
+  assert.equal(received.length,beforeDelete+(role==='admin'?1:0));
   assert.equal((await request(app).get(`/api/super-app/requests/${id}/locations`).set('Authorization',`Bearer ${token}`)).status,200);
   assert.equal((await request(app).post(`/api/super-app/requests/${id}/locations`).set('Authorization',`Bearer ${token}`).send({})).status,200);
   assert.equal(received.at(-1).method,'POST');assert.equal(received.at(-1).url,`/api/v1/operator/requests/${id}/locations`);
