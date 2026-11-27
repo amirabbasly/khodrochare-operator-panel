@@ -1,0 +1,2 @@
+'use client';
+export default function DriverAffiliationSummary({value}){return <section><h3>نشان خودروچاره و نوع فعالیت</h3>{value?<><p>تمایل به نصب نشان خودروچاره: {value.branding?'بله':'خیر'}</p>{!value.branding&&<p>نوع فعالیت: {{OTHER_COMPANY:'تحت پوشش شرکت امدادی دیگر',FREELANCE:'سفیر آزادکار',ROADSIDE_COMPANY:'شرکت امدادخودرویی'}[value.activity]} {value.companyName||''}</p>}</>:<p>هنوز ثبت نشده است.</p>}</section>;}

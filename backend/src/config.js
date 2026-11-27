@@ -25,6 +25,10 @@ const config = {
   isTest: env === 'test',
   port: Number(process.env.PORT || 4000),
   timezone: process.env.APP_TIMEZONE || 'Asia/Tehran',
+  superApp: {
+    url: process.env.SUPERAPP_API_URL || 'https://api.khodrochare.ir',
+    secret: process.env.OPERATOR_BRIDGE_SECRET || '',
+  },
 
   jwt: {
     secret: process.env.JWT_SECRET || DEFAULT_JWT_SECRET,

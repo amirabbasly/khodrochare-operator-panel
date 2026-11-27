@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { WORK_TYPES, WORK_TYPE_MAP } from '@/lib/constants';
 import { faDate, faDateShort, faNumber, initials } from '@/lib/format';
 import { formatAmount } from '@/lib/money';
+import SuperAppWorkspace from '@/components/SuperAppWorkspace';
 import RescuerFormModal from '@/components/RescuerFormModal';
 import {
   Badge,
@@ -20,7 +21,7 @@ import {
   StatCard,
 } from '@/components/ui';
 
-export default function RescuersPage() {
+function PanelRescuers() {
   const { isAdmin } = useAuth();
   const toast = useToast();
 
@@ -541,4 +542,14 @@ export default function RescuersPage() {
       />
     </>
   );
+}
+
+
+export default function RescuersPage() {
+  return <>
+    <PanelRescuers />
+    <section aria-label="حساب‌های امدادگران اپلیکیشن" style={{marginTop:32}}>
+      <SuperAppWorkspace accountsOnly accountRole="DRIVER" />
+    </section>
+  </>;
 }

@@ -1,0 +1,124 @@
+# اتصال مدیریت سوپر اپلیکیشن
+
+این تغییر محلی است و روی سرور اجرا نشده است. صفحه `/super-app` برای مدیر و اپراتور در دسترس است. امکانات بارها، کاربران و آگهی‌ها مستقل از بارهای قبلی CRM هستند.
+
+## استقرار
+
+1. در بک‌اند اپلیکیشن `npm ci` و `npx prisma generate` را اجرا کنید. قبل از migration از دیتابیس پشتیبان بگیرید، سپس با روند معمول استقرار `npx prisma migrate deploy` را اجرا کنید. migration جدید `202611230003_operator_superapp` و migrationهای قبلی اجرا‌نشده لازم هستند.
+2. یک مقدار تصادفی حداقل ۳۲ کاراکتری برای `OPERATOR_BRIDGE_SECRET` بسازید و همان مقدار را فقط در محیط دو بک‌اند اپلیکیشن و پنل قرار دهید؛ این مقدار نباید در NEXT_PUBLIC، مرورگر یا مخزن قرار بگیرد.
+3. در بک‌اند پنل `SUPERAPP_API_URL=https://api.khodrochare.ir` را تنظیم کنید. نشانی فقط origin بک‌اند است، بدون `/api/v1`. docker-compose پنل این دو متغیر را به سرویس API منتقل می‌کند. بک‌اند اپلیکیشن Redis در دسترس لازم دارد.
+4. هر دو بک‌اند و فرانت‌اند مشتری و پنل را با روند موجود build و restart کنید. در پیکربندی سفارشی Docker بک‌اند اپلیکیشن نیز متغیر `OPERATOR_BRIDGE_SECRET` باید به کانتینر منتقل شود.
+5. اگر `HALL_PLANS_JSON` قبلاً قیمت‌ها را بازنویسی کرده است، مقادیر آن را نیز به قیمت‌های زیر اصلاح کنید. کد پیش‌فرض و migration همین قیمت‌ها را دارند.
+
+## رفتار
+
+- تأیید اپراتور، درخواست معلق و منقضی‌نشده را برای پیگیری اپراتور نگه می‌دارد و از پیشنهادهای عمومی سفیران خارج می‌کند. راهنمای تماس نمایش داده می‌شود. تأیید به‌تنهایی انتساب به امدادگر نیست.
+- انتساب فقط به امدادگر فعال، ارائه‌دهنده خدمت مربوط و بدون مأموریت فعال ممکن است. اپلیکیشن‌ها از مسیر رویدادهای فعلی اطلاع پیدا می‌کنند. درخواست تأیید‌شده توسط اپراتور خودکار منقضی نمی‌شود.
+- مدیریت حساب شامل جزئیات، فعالیت اخیر، رمز جدید و فعال/غیرفعال است. غیرفعال‌کردن و تغییر رمز نشست‌های قبلی را باطل می‌کنند. حذف حساب یا ورود به جای کاربر در پنل وجود ندارد. سوابق مالی تغییر نمی‌کنند.
+- آگهی‌های تازه و ویرایش محتوای آگهی منتشرشده به `PENDING_REVIEW` می‌روند و قبل از تأیید عمومی نیستند. رد با توضیح الزامی است؛ مالک توضیح را در آگهی‌های من می‌بیند و می‌تواند اصلاح و دوباره ارسال کند. تأیید نسخه قدیمی آگهی ممنوع است.
+- خدمات اختیاری پس از انتشار قابل خریدند: نردبان ۳۲۰٬۰۰۰ ← ۹۹٬۰۰۰، فوری ۷۰۰٬۰۰۰ ← ۱۴۹٬۰۰۰، ویژه ۷۲۰٬۰۰۰ ← ۱۹۹٬۰۰۰ تومان.
+- امضای HMAC درخواست‌های پنل، زمان، شناسه یک‌بارمصرف Redis و هویت مدیر/اپراتور را کنترل می‌کند. کلید اتصال به فرانت‌اند ارسال نمی‌شود. تغییرات مدیریتی در `OperatorAudit` ثبت می‌شوند؛ رمزها در audit ذخیره نمی‌شوند.
+
+## بررسی پس از استقرار
+
+با هر دو نقش صفحه را باز کنید. یک درخواست معلق را تأیید و سپس تخصیص دهید؛ نمایش در اپ مشتری و سفیر مربوط را کنترل کنید. یک آگهی آزمایشی ارسال کنید و خصوصی‌بودن قبل از تأیید، علت رد، ارسال مجدد و انتشار پس از تأیید را بررسی کنید. غیرفعال‌کردن یک حساب آزمایشی باید نشستش را ببندد و فعال‌سازی باید ورود دوباره را مجاز کند.
+
+
+## نقشه و ثبت موقعیت درخواست
+
+در تب «نقشه درخواست‌ها» یا جزئیات درخواست، مبدأ ذخیره‌شده، آخرین GPS مشتری و آخرین GPS امدادگر روی یک نقشه نمایش داده می‌شود. دریافت اطلاعات هر ۵ ثانیه و فقط هنگام نمایش صفحه انجام می‌شود. نمونه قدیمی‌تر از `LOCATION_MAX_AGE_SECONDS` به‌عنوان قدیمی علامت می‌خورد؛ نبود GPS با مبدأ انتخابی مشتری جایگزین نمی‌شود.
+
+هنگام ایجاد درخواست و پذیرش یا تخصیص امدادگر، موقعیت‌ها داخل همان تراکنش در `OperatorAudit` با رویداد `REQUEST_LOCATION_CAPTURE` ذخیره می‌شوند. اپراتور نیز می‌تواند نمونه دریافتی را با «ثبت موقعیت فعلی طرفین» ثبت کند. زمان واقعی نمونه دستگاه، زمان ثبت، علت ثبت و نام ثبت‌کننده نگهداری می‌شوند. موقعیت‌های قبل از عرضه این قابلیت قابل بازسازی نیستند؛ مبدأ اصلی درخواست‌های قدیمی همچنان در دسترس است.
+
+مسیرهای `GET` و `POST /api/super-app/requests/:id/locations` از پل امضاشده پنل عبور می‌کنند؛ مختصات از پایگاه داده خوانده می‌شود و ورود مختصات از پنل پذیرفته نیست. برای نقشه migration جدیدی لازم نیست؛ migrationهای موجود ناوگان و `202611230003_operator_superapp` باید اجرا شده باشند. نقشه از کاشی‌های OpenStreetMap استفاده می‌کند و به دسترسی مرورگر به `tile.openstreetmap.org` نیاز دارد. مجوز GPS و اینترنت دستگاه‌ها برای دریافت موقعیت زنده لازم است.
+
+
+## محل مدیریت حساب‌ها
+
+تب «مشتریان اپلیکیشن» در `/super-app` فقط حساب‌های `CUSTOMER` را با جست‌وجو و صفحه‌بندی همان نقش نمایش می‌دهد. حساب‌های `DRIVER` در `/rescuers` و تب «امدادگران اپلیکیشن» قرار دارند؛ مدیریت حساب، رمز عبور، وضعیت، موجودی و سوابق خدمات در همان صفحه در دسترس است. فهرست قبلی CRM و حساب‌های اپلیکیشن هم‌زمان در همین صفحه نمایش داده می‌شوند و نیازی به انتخاب تب یا صفحه دیگر نیست. تخصیص درخواست به امدادگر همچنان از حساب‌های فعال اپلیکیشن استفاده می‌کند. این جابه‌جایی به migration یا انتقال رکوردهای دیتابیس نیاز ندارد.
+
+
+## شهر و بخش فعالیت امدادگر و ویرایش پروفایل
+
+فیلدهای `User.activityCity` و `User.activityDistrict` فقط اطلاعات اعلامی امدادگر هستند. شهر هنگام ثبت‌نام الزامی و بخش/منطقه اختیاری است. برای حساب‌های قبلی مقدار اولیه خالی است و از پروفایل قابل تکمیل است. این فیلدها در پیشنهاد بار، جست‌وجوی امدادگر برای تخصیص، موقعیت GPS، قیمت یا سایر ماژول‌ها دخالت ندارند. شهر و بخش در فهرست حساب‌های امدادگران صفحه `/rescuers` و جزئیات حساب نمایش داده می‌شود.
+
+نام و کد ملی هر دو نقش و شهر/بخش امدادگر با `PATCH /api/v1/me` قابل ویرایش است. تغییر شماره از پروفایل با رمز فعلی و کد یک‌بارمصرف شماره جدید انجام می‌شود؛ کد به حساب و شماره قبلی متصل است، برای ورود قابل استفاده نیست و پس از تأیید فقط نشست جاری باز می‌ماند. کلید ارسال پیامک باید روی بک‌اند فعال باشد.
+
+پیش از استقرار، `202611240001_profile_activity` و migrationهای اجرا‌نشده قبلی را در بک‌اند اپلیکیشن اجرا کنید. بک‌اند (همراه Prisma Client جدید)، وب مشتری، وب امدادگر و وب پنل باید نسخه جدید را دریافت کنند. این تغییر به migration در دیتابیس مستقل CRM پنل نیاز ندارد.
+
+
+## تأیید وجه در محل و ماژول دیاگ
+
+تأیید «مبلغ کامل رو به من پرداخت کرد» در امداد و سرویس دوره‌ای، اگر پرداخت هنوز انجام نشده باشد، دریافت کامل وجه در محل را ثبت می‌کند؛ اعلام قبلی مشتری الزامی نیست. سهم شرکت یک‌بار از موجودی امدادگر کم می‌شود و پرداخت با روش CASH و وضعیت VERIFIED ثبت می‌شود. در حالت پرداخت آنلاین تأییدشده، تیک فقط تأیید امدادگر را ثبت می‌کند و بدهکارکردن مجدد ندارد. پرداخت در جریان درگاه یا انتقال بانکی در انتظار بررسی نباید از این مسیر به نقدی تبدیل شود. سرویس دوره‌ای با مبلغ صفر، روش FREE می‌گیرد و هیچ کمیسیونی از موجودی کم نمی‌شود. رسید قدیمیِ صرفاً تیک‌خورده بدون پرداخت، قابل تأیید مجدد است.
+
+پس از ثبت، درخواست مستقیماً از سرور بازخوانی می‌شود تا پاسخ قدیمی polling نتواند وضعیت پرداخت جدید را بازنویسی کند. پایان خدمت همچنان نیازمند تأیید واقعی پرداخت و پیش‌نیازهای خدمت است. مسیر دریافت وجه در محل برای هر پنج خدمت یکسان است؛ این اصلاح migration جدیدی نیاز ندارد.
+
+صفحه `/diagnostic` در هر دو رابط وب، تصویر `public/obd-diagnostic.png` و پیشنهاد بلک فرایدی ۱٬۱۵۰٬۰۰۰ ← ۵۵۹٬۰۰۰ تومان را نشان می‌دهد. امکانات دیاگ/GPS/ریمپ پیش‌نمایش ماژولِ در حال تکمیل‌اند؛ خرید فقط مودال اطلاع‌رسانی باز می‌کند و تراکنش، entitlement یا دسترسی واقعی ایجاد نمی‌شود. میان‌برهای واردات، فروش خودرو و جمعه بازار زیر ردیف اصلی اضافه شده‌اند. فروش خودرو در اپ مشتری به تالار همان اپ و در اپ امدادگر به تالار اپ مشتری لینک می‌شود؛ مبدأ با NEXT_PUBLIC_CUSTOMER_APP_URL قابل تنظیم است. جمعه بازار در هر دو اپ باز می‌شود. برای استقرار، بک‌اند و هر دو وب‌اپ همراه تصویر جدید منتقل و rebuild شوند.
+
+
+## احراز امدادگران و استقرار نسخه جدید
+
+در `/super-app` تب «احراز امدادگران» حساب‌های در صف بررسی، نیازمند اصلاح و تأییدشده را نشان می‌دهد. تصویر مدارک فقط از پل امضاشده پنل و با کنترل مالکیت سند خوانده می‌شود. اپراتور شماره تماس را می‌بیند، برای رفع اشکال تماس می‌گیرد و می‌تواند اطلاعات هر امدادگر، از جمله امدادگر تأییدشده، را ویرایش کند. تغییر شماره توسط اپراتور نشست‌های قبلی و کدهای مصرف‌نشده شماره قبلی را باطل می‌کند. بررسی و ویرایش با شماره نسخه و قفل حساب انجام و در گزارش اپراتور ثبت می‌شود؛ تأیید بدون مدرک هویتی متعلق به حساب مجاز نیست.
+
+ثبت‌نام حساب فعال با احراز PENDING می‌سازد؛ ورود با رمز یا OTP بسته نمی‌شود. امدادگر می‌تواند صفحه اصلی، بارها، پروفایل و مدارک را ببیند؛ پذیرش بار و استفاده از ماژول‌ها پیش از APPROVED با پیام صف بررسی متوقف می‌شود. در صورت فعال بودن اپ، وضعیت هر ۱۵ ثانیه و هنگام بازگشت به پنجره بازخوانی می‌شود. پیام ثبت‌نام و وعده بررسی تا ۲۴ ساعت و پیام خوشامد خانواده ۳۰ هزارنفری پس از تأیید، مشاهده‌شدن را در سرور ثبت می‌کنند و پس از خروج/ورود یا تغییر دستگاه تکرار نمی‌شوند. بازه ۲۴ ساعت متن اطلاع‌رسانی برای بررسی دستی اپراتور است؛ تأیید خودکار زمان‌بندی‌شده وجود ندارد.
+
+تغییر مدرک یا نام/کدملی توسط خود امدادگر، حساب را دوباره در صف بررسی قرار می‌دهد. تغییر شهر/بخش فقط اطلاعاتی است و مستقل از احراز، دریافت بار و قیمت می‌ماند. ویرایش اپراتور می‌تواند اطلاعات حساب تأییدشده را بدون لغو تأیید اصلاح کند. مأموریت قبلاً تخصیص‌یافته برای پایان کار و تسویه مسدود نمی‌شود.
+
+برای هر پنج خدمت، «مبلغ کامل رو به من پرداخت کرد» تنها کنترل ثبت دریافت وجه است؛ دکمه و متن تکراری «وجه کامل را در محل دریافت کردم» حذف شده است. دریافت نقدی، پرداخت را VERIFIED می‌کند و سهم شرکت را فقط یک‌بار از موجودی کم می‌کند. منفی‌شدن موجودی پایان مأموریت فعلی را نمی‌بندد، ولی هم پذیرش مستقیم و هم تخصیص اپراتور برای بار جدید تا تسویه منع می‌شود. بارها همچنان قابل مشاهده‌اند.
+
+استقرار این نسخه شامل بک‌اند اپ، اپ سفیران، اپ مشتری و بک‌اند/فرانت‌اند پنل است. migration جدید `202611240002_driver_verification` باید همراه Prisma Client جدید اعمال شود؛ در Docker رسمی بک‌اند، `prisma migrate deploy` در شروع کانتینر اجرا می‌شود. در اجرای بدون Docker پیش از راه‌اندازی `npm run db:migrate` و `npm run prisma:generate` را در پوشه بک‌اند اجرا کنید. دیتابیس مستقل CRM migration تازه‌ای ندارد.
+
+حساب‌های امدادگر قبلی نیز با اجرای migration در صف بررسی قرار می‌گیرند و برای بار جدید نیازمند تأیید اپراتور هستند؛ هیچ حساب قدیمی بدون بررسی خودکار تأیید نمی‌شود. برای حساب‌های قبلی پیام ثبت‌نام تازه نشان داده نمی‌شود. مأموریت جاری و سابقه مالی حفظ می‌شوند.
+
+
+به‌روزرسانی ۲۴ نوامبر: چهار میان‌بر واردات/فروش/جمعه‌بازار فقط در اپ مشتری هستند و از اپ سفیران حذف شده‌اند. تنظیم NEXT_PUBLIC_CUSTOMER_APP_URL برای این میان‌بر در اپ سفیران دیگر استفاده نمی‌شود. جزئیات محدودیت ۸ MiB و پردازش عکس تالار در `khodrochare-backend/docs/CAR-HALL.md` آمده است؛ پردازش جدید تصویر نیازی به تغییر پنل یا migration ندارد.
+
+
+## اصلاح احراز، مدارک چهارگانه و آیکون‌های اصلی — ۲۴ نوامبر ۲۰۲۶
+
+وضعیت NEEDS_CORRECTION بر پیام ثبت‌نام و خوشامد تأیید اولویت دارد. اپ سفیران متن verificationNote ثبت‌شده پشتیبانی را به‌صورت متن نمایش می‌دهد و دکمه «تکمیل احراز هویت» بخش مدارک پروفایل را باز می‌کند. پنجره برای همان بازبینی در یک بازکردن اپ تکرار نمی‌شود؛ در مراجعه بعدی تا اصلاح، علت دوباره در دسترس است. آپلود تک‌تک مدارک علت اصلاح را پاک نمی‌کند؛ پس از کامل‌شدن چهار بخش، «ارسال مدارک برای بررسی» وضعیت را به PENDING برمی‌گرداند. اپراتور با نسخه تازه دوباره تصمیم می‌گیرد.
+
+چهار بخش الزامی عبارت‌اند از NATIONAL_ID (کارت ملی)، BIRTH_CERTIFICATE (شناسنامه)، DRIVING_LICENSE (گواهینامه) و VEHICLE_OWNERSHIP (مدرک تعلق خودرو به امدادگر). کارت ماشین VEHICLE_CARD، بیمه‌نامه INSURANCE و گواهی معاینه فنی TECHNICAL_INSPECTION سه نوع انتخابی برای یک بخش آخرند؛ یک مدرک جاری کافی است. تطبیق نام مالک با اطلاعات امدادگر توسط اپراتور انجام می‌شود؛ دسته‌بندی فایل به معنی اثبات خودکار مالکیت نیست.
+
+Document.verificationKind و Document.vehicleEvidenceType در دیتابیس ذخیره می‌شوند. ایندکس یکتا برای ownerId/verificationKind وجود یک مدرک جاری در هر بخش را تضمین می‌کند. جایگزینی، طبقه‌بندی مدرک قبلی را آزاد می‌کند و فایل قبلی حذف نمی‌شود. ثبت‌نام جدید چهار فایل مستقل می‌خواهد؛ هم پروفایل و هم ثبت‌نام قابل بارگذاری‌اند. تأیید اپراتور تا کامل‌بودن هر چهار مدرک متعلق به همان حساب ممنوع است. مدارک هویتی خصوصی و سقف هر تصویر JPG/PNG پنج مگابایت است؛ سقف هشت مگابایت تالار خودرو به این بخش مربوط نیست.
+
+migration جدید 202611240004_verification_documents باید در بک‌اند اپ اجرا و Prisma Client مجدداً ساخته شود. فایل قدیمیِ «کارت ملی یا شناسنامه» به LEGACY_IDENTITY منتقل می‌شود، بدون حدس نوع یا حذف فایل؛ برای بررسی جدید، کارت ملی و شناسنامه باید جدا ثبت شوند. تصمیم تأیید قبلی با اجرای این migration خودکار لغو نمی‌شود؛ تغییر مدرک، بررسی مجدد می‌خواهد. برای استقرار، بک‌اند اپ، اپ سفیران و فرانت پنل با هم به‌روزرسانی شوند. دیتابیس مستقل CRM migration تازه‌ای ندارد.
+
+هشت آیکون خدمات اصلی و میان‌برهای اپ مشتری از MainServiceIcon استفاده می‌کنند: حجم سه‌بعدی ملایم، رنگ‌های هماهنگ و یک نماد اصلی برای هر خدمت. حمل خودرو یک یدک‌کش مستقل با بازو و قلاب است، بدون خودروی سوارشده. آیکون‌ها SVG داخلی با شناسه گرادیان یکتا هستند؛ تصویر حجیم، کتابخانه یا انیمیشن دائمی اضافه نشده و حالت کاهش حرکت سیستم رعایت می‌شود. رفتار دکمه‌ها حفظ شده و این هشت دکمه در اپ سفیران اضافه نمی‌شوند. اپ مشتری نیز باید build/deploy شود.
+
+
+پرداخت خدمات و بدهی ناوگان: در اپ مشتری پنج خدمت فعال «پرداخت آنلاین» و «برداشت از کیف پول» همراه موجودی واقعی دارند. انتخاب خدمات اختیاری ثبت آگهی رایگان پس از ارسال برای بررسی، مرحله پرداخت را باز می‌کند. ارتقای آگهی‌های منتشرشده و در صف بررسی نیز انتخاب روش پرداخت دارد. برداشت به مبلغ سرور انجام می‌شود. سفارش تبلیغاتی پرداخت‌شده در صف بررسی با وضعیت VERIFIED و errorCode=AWAITING_MODERATION نگهداری می‌شود؛ activatedAt خالی می‌ماند و مدت خدمت تنها هنگام تأیید اپراتور شروع می‌شود. رد آگهی خدمت را فعال نمی‌کند؛ پس از اصلاح و تأیید می‌تواند فعال شود. امدادگر بدهکار هنگام بازکردن یا بازگشت به اپ، پیام نام‌دار کمیسیون و دکمه رفتن به کیف پول می‌بیند؛ پس از تسویه پیام بسته می‌شود و محدودیت گرفتن بار جدید برقرار است. این تغییر نیازمند استقرار بک‌اند اپ و هر دو اپ است؛ migration تازه‌ای ندارد.
+
+حذف آگهی تالار: در سوپر اپلیکیشن، «بررسی آگهی‌های تالار» و سپس «بازبینی آگهی» را باز کنید. دکمه «حذف آگهی» پس از تأیید، آگهی را با وضعیت DELETED از نمایش خارج می‌کند؛ سوابق مالی حفظ و اقدام اپراتور ثبت می‌شود. فیلتر اولیه تمام آگهی‌های حذف‌نشده را نشان می‌دهد. مسیر امضاشده POST /listings/:id/delete نسخه آگهی را کنترل می‌کند. استقرار این تغییر شامل بک‌اند اپ و بک‌اند/فرانت‌اند پنل است و migration جدیدی ندارد.
+
+Wallet receipts and spending (2026-11-25): Both roles submit only a JPEG/PNG receipt (5 MiB maximum). The operator enters the approved amount in toman. Each approval credits its owner exactly once. The supplied replacement bank-card image is in both apps; destination defaults to 6219861435789192. WALLET_RECEIPT_CARD_NUMBER and WALLET_RECEIPT_ACCOUNT_NAME override defaults.
+
+Deploy backend, both apps and operator frontend together. Apply 202611240005_receipt_review_amount and 202611240006_wallet_spending and regenerate Prisma Client. Existing receipts and balances are retained. WalletDebit records actual spending, uniquely per payment/order. Spending locks the account and checks real available funds. All five internal services and active Hall boosts support wallet payments; external vendor purchases and unfinished modules remain unchanged. Wallet spending uses real funds even when the gateway is in sandbox mode. Pending drivers may submit deposit receipts without gaining access to restricted modules.
+
+
+Hall feed update: The top slider contains only published listings with active FEATURED service. The main feed starts with the newest active ladder (bumpedAt descending), followed by three ordinary listings, then the next ladder. Categories have disjoint filters and pagination continues the same sequence. Remaining ads are shown when a category runs out; expired ladders return to the ordinary pool. Search filters apply to the slider and feed alike. Inline promotional strips are removed. URGENT is hidden from catalog and rejected for new checkouts; historical payments remain intact. Both wallet receipt screens now use a single upload button that opens the file picker and submits the chosen image. Deploy backend and both apps; no new migration is required.
+
+
+Hall wallet checkout 500 fix: apply 202611240007_hall_wallet_mode. The original HallOrder_mode_check allowed only sandbox, while wallet checkout creates a live order. The new constraint permits live only with a non-null WALLET- reference and no gateway authority; sandbox gateway behavior is preserved. No Prisma model/client change is required for this migration. The HTTP regression test applies the original SQL constraint, reproduces 500, checks that neither balance nor order/debit records change, applies the repair migration, and retries the same key successfully with exactly one debit. Rebuild/deploy the backend image; its production entrypoint runs prisma migrate deploy.
+
+
+Combined Hall payment and publication intent: migrate 202611240008_hall_publication_intent and regenerate Prisma Client. Deploy the API, customer app and operator frontend together. LADDER and FEATURED selections form one order, with server-summed price and one wallet debit or gateway authority. The order snapshot retains each service and duration. Clicking publish with selected boosts saves requestedBoosts while keeping the listing DRAFT; only verified payment atomically moves it to PENDING_REVIEW. Failed, cancelled, or insufficient payments remain drafts. Free publication without boosts still queues directly after publication proof. The operator listing API excludes DRAFT in every filter, including ALL. Approval activates every paid service at its individual duration; duplicate verification and repeated wallet payment do not charge twice. The wizard restores the unpaid payment step from requestedBoosts. The ladder ribbon is orange.
+
+
+Paid Hall editing: The payment screen lists selected service names and one combined total, without individual service payment rows. Owned listing DTOs include paidBoosts from all VERIFIED orders, including orders awaiting moderation and previously activated orders. These selections stay checked/disabled in the wizard and upgrade chooser and are excluded from the checkout total and publication payment intent. Re-publishing an edited listing never charges for previously paid selections. No additional migration is needed beyond the existing Hall migrations; deploy API and customer app together.
+
+
+Import requests: deploy API, customer app, operator API and frontend together, applying 202611240009_import_requests and regenerating Prisma Client. The new ImportRequest table stores authenticated customer requests for CARS/PARTS. Submission requires an owner/request-bound, single-use imports captcha proof; retries use a stable request UUID and cannot duplicate an identical submission. Captcha keys are isolated from Hall proofs. The signed GET /api/v1/operator/imports endpoint supports kind, search and pagination, exposed by the existing panel bridge to admin/operator roles. The super-app panel has an Import Requests tab with contact and request details. The customer pages show the closed Okiyan partner accordion, corrected office contact 021-91006662, WhatsApp without its phone number, and the new car emblem. Onsite service and carwash options are vertical checkbox lists; mutually exclusive wash base packages remain exclusive while extras allow multiple selections. No payment or job dispatch is created by an import request. Customer account deletion removes its import requests.
+
+
+Showrooms and ads (2026-11-25): deploy API, customer app, operator API and frontend together. Apply 202611250001_showrooms and regenerate Prisma Client before serving the new clients. The customer Hall has Buy Cars / Showrooms / Profile navigation; private ads/drafts and conversations are under Profile. Showroom pages reuse Dashboard and CarHall so the original app header, Hall heading and navigation remain visible, with orange accents. Showroom OTP login uses the existing SMS provider and verified CUSTOMER sessions; showroom registration does not grant access to other customer services without their existing identity requirements.
+
+Owner registration creates an account bound to the verified phone. Owners can add multiple showrooms with separate addresses, sliders (six shop photos), manager biography/photo/phone and up to 30 advisors. Drafts are private. Submission uses the showroom-specific, owner-bound single-use captcha namespace. Only operator-approved active showrooms whose accounts/users are active appear publicly. Owner edits or media changes return the showroom to draft. Ads created from showroom management belong to that showroom and reuse the Hall wizard, moderation, wallet and payment flow. Deactivating a showroom/account hides its inventory and sponsored ads.
+
+The operator Showrooms tab supports reviewing/versioned editing, approval/rejection with reason, disabling accounts/showrooms, uploading/removing images, editing manager/advisors/address, inventory editing/deletion and controlling gold bids/active state. Photos retain private tokens until publication. JSON image uploads are capped on the specific bridge/API route, and decoded images use the existing Hall photo validation/optimization.
+
+Gold ADS has a 6,000 toman minimum bid and minimum funding. Funding moves real wallet funds to a dedicated campaign budget in one transaction and one idempotent WalletDebit via GoldFunding. A valid, signed visitor-bound click token is required to debit campaign budget. Owner clicks and repeated clicks by the same visitor/campaign/day are not billed again. Charges serialize on the campaign row; insufficient or inactive campaigns cannot spend. Campaign ranking is descending bid among eligible approved showrooms. Competitor averages use actual eligible campaign data; absence of data is shown explicitly. Public preview banners are inserted after every ten feed entries across page boundaries. No visitor hash is exposed in owner/public responses. Unspent campaign budget must be settled before account deletion.
+
+Featured service duration is six hours for new purchases; six database-backed FeaturedSlot rows and a global transaction lock cap concurrent reservations. Wallet purchase and slot claim roll back together. Gateway preparation reserves a slot for ten minutes; cancellation/failure releases it. Verification/approval reacquires capacity before activation; a late bank success without a slot remains REVIEW_REQUIRED (FEATURED_CAPACITY) instead of activating a seventh slide. Existing paid featured durations are retained on migration; the slider returns at most six. The catalog exposes availability and the next release time; new featured selection is disabled at capacity with a countdown. LADDER retains its internal code and placement (one ladder, three ordinary ads), labelled Immediate/Ladder in the catalog.
+
+Inspection now opens exactly one native dialog with two choices: regular inspection with Khodro Chare guarantee and a disabled free-inspection/until-24h-sale offer bearing a red Coming Soon tag. The active choice resumes the existing INSPECTION flow.

@@ -41,6 +41,7 @@ function createApp() {
 
   // مسدودسازی IP (تله‌ی ورود / بروت‌فورس) — قبل از مسیرها
   app.use('/api', require('./middleware/ipBan').ipBanGuard);
+  app.use('/api/super-app/showrooms',express.json({limit:'12mb'}));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
 
@@ -66,6 +67,7 @@ function createApp() {
   app.use('/api/stats', require('./routes/stats'));
   app.use('/api/meta', require('./routes/meta'));
   app.use('/api/security', require('./routes/security'));
+  app.use('/api/super-app', require('./routes/superApp'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

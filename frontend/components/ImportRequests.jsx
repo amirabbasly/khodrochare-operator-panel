@@ -1,0 +1,11 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {api} from '@/lib/api';
+import {Card,Loader,EmptyState,Pagination} from '@/components/ui';
+import {faDateTime} from '@/lib/format';
+export default function ImportRequests(){
+ const [kind,setKind]=useState('ALL'),[q,setQ]=useState(''),[search,setSearch]=useState(''),[page,setPage]=useState(1),[data,setData]=useState(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+ useEffect(()=>{const timer=setTimeout(()=>{setSearch(q);setPage(1);},300);return()=>clearTimeout(timer);},[q]);
+ useEffect(()=>{const c=new AbortController();api.get('/super-app/imports',{kind,q:search,page,limit:20},{signal:c.signal}).then(value=>{if(!c.signal.aborted){setData(value);setError('');}}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[kind,search,page,revision]);
+ return <Card title="درخواست‌های واردات"><div className="superapp-filters"><label>نوع درخواست<select value={kind} onChange={e=>{setKind(e.target.value);setPage(1);}}><option value="ALL">همه</option><option value="CARS">واردات خودرو</option><option value="PARTS">واردات قطعات خاص</option></select></label><label>جستجو<input value={q} onChange={e=>setQ(e.target.value)} placeholder="نام، شماره، شهر یا موضوع"/></label><button className="btn btn-outline" onClick={()=>setRevision(v=>v+1)}>به‌روزرسانی درخواست‌ها</button></div>{error?<p role="alert" className="text-danger">{error}</p>:!data?<Loader/>:!data.items.length?<EmptyState title="درخواست وارداتی ثبت نشده است"/>:<><div className="table-wrap"><table className="data"><thead><tr>{['نوع','نام و نام خانوادگی','تماس','شهر','خودرو / قطعه','کد قطعه','توضیحات','زمان ثبت'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{data.items.map(row=><tr key={row.id}><td>{row.kind==='CARS'?'واردات خودرو':'واردات قطعات خاص'}</td><td>{row.fullName}</td><td><a dir="ltr" href={`tel:${row.phone}`}>{row.phone}</a></td><td>{row.city}</td><td>{row.subject}</td><td>{row.partCode||'—'}</td><td style={{whiteSpace:'pre-wrap',minWidth:240,maxWidth:400,overflowWrap:'anywhere'}}>{row.description}</td><td>{faDateTime(row.createdAt)}</td></tr>)}</tbody></table></div><Pagination pagination={data.pagination} onPageChange={setPage}/></>}</Card>;
+}
